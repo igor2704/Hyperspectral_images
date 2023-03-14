@@ -165,6 +165,7 @@ class HyperImg(ABC):
         new_hyper_img = deepcopy(self)
         new_hyper_img.medians -= other.medians
         new_hyper_img.img -= other.img
+        new_hyper_img.img = new_hyper_img.img.clip(a_min=0)
         mask = self.mask.clip(0, 1).astype(int) - other.mask.clip(0, 1).astype(int)
         new_hyper_img.mask = mask.clip(0, 1)
         new_hyper_img.target_varible = new_hyper_img.target_varible + ' - ' + other.target_varible
