@@ -15,8 +15,6 @@ class TableHyperImg(HyperImg):
                  threshold_value: float = 25,
                  savgol_par: tuple[int, int] = (9, 3),
                  target_varible_name: str = 'Target Varible',
-                 black_calibration_img_name: str = '',
-                 white_calibration_img_name: str = '',
                  name_column: str = 'Image Name',
                  black_calibr_name_column: str = 'Black calibration data',
                  white_calibr_name_column: str = 'White calibration data') -> None:
@@ -38,8 +36,7 @@ class TableHyperImg(HyperImg):
         self.name_column = name_column
         self.black_calibr_name_column = black_calibr_name_column
         self.white_calibr_name_column = white_calibr_name_column
-        super().__init__(path, threshold_value, savgol_par, target_varible_name,
-                         black_calibration_img_name, white_calibration_img_name)
+        super().__init__(path, threshold_value, savgol_par, target_varible_name)
         
     def _get_tiff(self) -> np.ndarray:
         if len(self.table[self.table[self.name_column] == self.path.split('/')[-1]]) == 0:
@@ -47,19 +44,21 @@ class TableHyperImg(HyperImg):
 
         dir_name: str = '/'.join(self.path.split('/')[:-1]) + '/'
         img = tiff.imread(self.path)
-        if not self.table[self.table[self.name_column] == self.path.split('/')[-1]
-                          ][self.black_calibr_name_column].isnull().iloc[0]:
-            bl_img = tiff.imread(dir_name + self.table[self.table[self.name_column] == self.path.split('/')[-1]
-                                                       ][self.black_calibr_name_column].iloc[0])
+        if self.table[self.table[self.name_column] == self.path.split('/')[-1]
+                       ][self.black_calibr_name_column].iloc[0]:
+            self.black_calibration_img_name = self.table[self.table[self.name_column] == self.path.split('/')[-1]
+                                                         ][self.black_calibr_name_column].iloc[0]
+            bl_img = tiff.imread(dir_name + self.black_calibration_img_name)
             new_img = np.where(bl_img > img, 0, img - bl_img)
         else:
             bl_img = np.zeros(img.shape)
             new_img = img    
-        if self.table[self.table[self.name_column] == self.path.split('/')[-1]
-                      ][self.white_calibr_name_column].isnull().iloc[0]:
+        if not self.table[self.table[self.name_column] == self.path.split('/')[-1]
+                          ][self.white_calibr_name_column].iloc[0]:
             return new_img
-        wh_img = tiff.imread(dir_name + self.table[self.table[self.name_column] == self.path.split('/')[-1]
-                                                   ][self.white_calibr_name_column].iloc[0])
+        self.white_calibration_img_name = self.table[self.table[self.name_column] == self.path.split('/')[-1]
+                                                     ][self.white_calibr_name_column].iloc[0]
+        wh_img = tiff.imread(dir_name + self.white_calibration_img_name)
         try:
             return new_img/(wh_img - bl_img)
         except ZeroDivisionError:
