@@ -43,6 +43,7 @@ class HyperImg(ABC):
             black_calibration_img_name (str): black image for calibration name. Defaults to ''.
             white_calibration_img_name (str): white image for calibration name. Defaults to ''.
             mask (None | np.ndarray): image mask.
+            with_median (bool): if true that if True, then counts medians. Defaults to True.
         """
         self.plant_number = None
         self.savgol_par = savgol_par
