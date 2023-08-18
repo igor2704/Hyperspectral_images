@@ -1,0 +1,4 @@
+*.git
+*.idea
+*.mypy_cache
+*__pycache__*
