@@ -30,7 +30,7 @@ class TableHyperImg(HyperImg):
         Args:
             path (str): images path.
             table (pd.DataFrame): table with columns: Name, self.target_varible_name,
-                              Black image for calibration name, White image for calibration name.
+                                 Black image for calibration name, White image for calibration name.
             segmenter (Segmenter): object for segmentation.
             savgol_par (tuple[int, int], optional): parametrs for savgol method. Defaults to (9, 3).
             target_varible_name (str, optional): name of target varible. Defaults to 'Target Varible'.
