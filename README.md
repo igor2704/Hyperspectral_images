@@ -3,4 +3,5 @@
 - hyper_img is project directory.
 - examples is directory with usage examples.
 - description is directory with useful project description.
-\ my e-mail: *i.busov@g.nsu.ru*
+\ 
+my e-mail: *i.busov@g.nsu.ru*
