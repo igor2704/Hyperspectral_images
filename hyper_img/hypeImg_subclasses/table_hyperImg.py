@@ -54,29 +54,29 @@ class TableHyperImg(HyperImg):
             raise NameError('Error in path')
         dir_name: str = '/'.join(self.path.split('/')[:-1]) + '/'
         self.dir_name = dir_name
-        img = tiff.imread(self.path)
+        img = tiff.imread(self.path).astype(np.float64)
         self.object_name = self.table[self.table[self.name_column] == self.path.split('/')[-1]
                                       ][self.plant_column].iloc[0]
         if self.table[self.table[self.name_column] == self.path.split('/')[-1]
                       ][self.black_calibr_name_column].iloc[0]:
             self.black_calibration_img_name = self.table[self.table[self.name_column] == self.path.split('/')[-1]
                                                          ][self.black_calibr_name_column].iloc[0]
-            self.bl_img = tiff.imread(dir_name + self.black_calibration_img_name)
+            self.bl_img = tiff.imread(dir_name + self.black_calibration_img_name).astype(np.float64)
             new_img = np.where(self.bl_img > img, 0, img - self.bl_img)
         else:
-            self.bl_img = np.zeros(img.shape)
+            self.bl_img = np.zeros(img.shape, dtype=np.float64)
             new_img = img    
         if self.table[self.table[self.name_column] == self.path.split('/')[-1]
                       ][self.white_calibr_name_column].iloc[0]:
             self.white_calibration_img_name = self.table[self.table[self.name_column] == self.path.split('/')[-1]
                                                          ][self.white_calibr_name_column].iloc[0]
-            self.wh_img = tiff.imread(dir_name + self.white_calibration_img_name)
+            self.wh_img = tiff.imread(dir_name + self.white_calibration_img_name).astype(np.float64)
             try:
                 new_img = new_img/(self.wh_img - self.bl_img)
             except ZeroDivisionError:
                 raise ZeroDivisionError('black image is equal to white in one component')
         else:
-            self.wh_img = np.zeros(img.shape)
+            self.wh_img = np.zeros(img.shape, dtype=np.float64)
         return new_img
 
     def _get_target_varible(self) -> str:

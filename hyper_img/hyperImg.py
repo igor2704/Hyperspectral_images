@@ -247,7 +247,7 @@ class HyperImg(ABC):
     def __repr__(self) -> str:
         fig, axes = plt.subplots(1, 2)
 
-        axes[0].imshow(self.bgr, cmap='gray')
+        axes[0].imshow(cv2.cvtColor(self.bgr, cv2.COLOR_BGR2RGB), cmap='gray')
         axes[0].set_title('rgb visualization')
 
         axes[1].imshow(self.mask, cmap='gray')

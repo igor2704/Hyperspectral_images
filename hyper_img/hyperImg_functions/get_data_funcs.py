@@ -151,13 +151,13 @@ def get_list_hyper_img(class_name: type,
     return lst
 
 
-def get_google_table_sheets(sheet_url: str = '1-C3XlMbsvuBdVyGzQ6eeVoTBIg9Fb9k6zUQjbzjYCtw',
-                            authenticate_key_path: str = 'annotation-hyperspectral-8e9249a95022.json') -> pd.DataFrame:
+def get_google_table_sheets(sheet_url: str,
+                            authenticate_key_path: str) -> pd.DataFrame:
     """
     For read google table.
     Args:
         sheet_url (str): table sheet url.
-        authenticate_key_path (str): path to authenticate key.
+        authenticate_key_path (str): path to authenticate key (https://cloud.google.com/iam/docs/keys-create-delete).
 
     Returns:
         pd.DataFrame: table for read.
@@ -323,7 +323,7 @@ def get_df_pca_and_explained_variance(hyper_imges: tp.Sequence[HyperImg],
 def get_df_isomap(hyper_imges: tp.Sequence[HyperImg],
 		          n_neighbors: int  = 5,
                   n_components: int = 2,
-                  **kwargs_sklearn_isomap) -> tuple[pd.DataFrame, np.ndarray]:
+                  **kwargs_sklearn_isomap) -> pd.DataFrame:
     """
     Create pd.DataFrame with projection values on 2 main vectors in ISOMAP
 
@@ -337,7 +337,6 @@ def get_df_isomap(hyper_imges: tp.Sequence[HyperImg],
 
     Returns:
         pd.DataFrame: DataFrame of 2 main ISOMAP components.
-        np.ndarray: numpy array with explained variance for 2 main ISOMAP components.
     """
 
     if len(hyper_imges) == 0:
@@ -363,7 +362,7 @@ def get_df_isomap(hyper_imges: tp.Sequence[HyperImg],
 def get_df_umap(hyper_imges: tp.Sequence[HyperImg],
                 n_components: int = 2,
                 n_neighbors: int = 15,
-                **kwargs_sklearn_umap) -> tuple[pd.DataFrame, np.ndarray]:
+                **kwargs_sklearn_umap) -> pd.DataFrame:
     """
     Create pd.DataFrame with projection values on 2 main vectors in UMAP
 
@@ -377,7 +376,6 @@ def get_df_umap(hyper_imges: tp.Sequence[HyperImg],
 
     Returns:
         pd.DataFrame: DataFrame of 2 main UMAP components.
-        np.ndarray: numpy array with explained variance for 2 main UMAP components.
     """
 
     if len(hyper_imges) == 0:

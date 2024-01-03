@@ -164,7 +164,7 @@ def get_2_pca_graph(hyper_imges: tp.Sequence[HyperImg],
                     png_width: int = 500,
                     png_height: int = 700) -> None:
     """
-    Plots PSA with 2 principal components.
+    Plots PCA with 2 principal components.
 
     Args:
         hyper_imges (tp.Sequence[HyperImg]): the sequence of hyperspectral images.

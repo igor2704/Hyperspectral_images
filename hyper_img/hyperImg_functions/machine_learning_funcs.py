@@ -100,6 +100,7 @@ def get_average_metrics(models: tp.Sequence[sklearn.base.BaseEstimator],
                                       y_pred[:, cl]) / num_class
     return pd.DataFrame(zip(models_name, accuracy, f1, precision, recall),
                         columns=['model', 'accuracy', 'f1', 'precision', 'recall'])  
+
     
 def get_macro_metrics(models: tp.Sequence[sklearn.base.BaseEstimator],
                       models_name: tp.Sequence[str],
@@ -145,6 +146,30 @@ def get_micro_metrics(models: tp.Sequence[sklearn.base.BaseEstimator],
     f1: tp.List[float] = [f1_score(y, y_pr, average='micro') for y_pr in y_predicts]
     precision: tp.List[float] = [precision_score(y, y_pr, average='micro') for y_pr in y_predicts]
     recall: tp.List[float] = [recall_score(y, y_pr, average='micro') for y_pr in y_predicts]
+    return pd.DataFrame(zip(models_name, accuracy, f1, precision, recall),
+                        columns=['model', 'accuracy', 'f1', 'precision', 'recall'])
+
+
+def get_binary_metrics(models: tp.Sequence[sklearn.base.BaseEstimator],
+                       models_name: tp.Sequence[str],
+                       X: np.ndarray,
+                       y: np.ndarray) -> pd.DataFrame:
+    """
+    Get binary classification results.
+    Args:
+       models (tp.Sequence[sklearn.base.BaseEstimator]): classification models
+       models_name (tp.Sequence[str]): models names
+       X (np.ndarray): features
+       y (np.ndarray): classes
+
+    Returns:
+       pd.DataFrame: table with classification results
+       """
+    y_predicts = [model.predict(X) for model in models]
+    accuracy: tp.List[float] = [accuracy_score(y, y_pr) for y_pr in y_predicts]
+    f1: tp.List[float] = [f1_score(y, y_pr, average='binary') for y_pr in y_predicts]
+    precision: tp.List[float] = [precision_score(y, y_pr, average='binary') for y_pr in y_predicts]
+    recall: tp.List[float] = [recall_score(y, y_pr, average='binary') for y_pr in y_predicts]
     return pd.DataFrame(zip(models_name, accuracy, f1, precision, recall),
                         columns=['model', 'accuracy', 'f1', 'precision', 'recall'])
 
@@ -315,17 +340,21 @@ def get_table_res_and_confusion_matrix(hyper_imges: tp.Sequence[HyperImg],
                random_forest.best_estimator_, catboost.best_estimator_],
               ['Logistic regression', 'Ridge regression',
                'Random forest', 'Catboost'])
-    table_dfs['macro_train'] = get_macro_metrics(*params, X_train, y_train.values)
-    table_dfs['micro_train'] = get_micro_metrics(*params, X_train, y_train.values)
-    table_dfs['macro_test'] = get_macro_metrics(*params, X_test, y_test.values)
-    table_dfs['micro_test'] = get_micro_metrics(*params, X_test, y_test.values)
-    if class_function is not None:
-        y_train_str = y_train.apply(lambda x: idx_to_target[x])
-        y_test_str = y_test.apply(lambda x: idx_to_target[x])
-        table_dfs['average_train'] = get_average_metrics(*params, X_train,
-                                                         y_train_str, class_function, idx_to_target)
-        table_dfs['average_test'] = get_average_metrics(*params, X_test,
-                                                        y_test_str, class_function, idx_to_target)
+    if len(idx_to_target) > 2:
+        table_dfs['macro_train'] = get_macro_metrics(*params, X_train, y_train.values)
+        table_dfs['micro_train'] = get_micro_metrics(*params, X_train, y_train.values)
+        table_dfs['macro_test'] = get_macro_metrics(*params, X_test, y_test.values)
+        table_dfs['micro_test'] = get_micro_metrics(*params, X_test, y_test.values)
+        if class_function is not None:
+            y_train_str = y_train.apply(lambda x: idx_to_target[x])
+            y_test_str = y_test.apply(lambda x: idx_to_target[x])
+            table_dfs['average_train'] = get_average_metrics(*params, X_train,
+                                                            y_train_str, class_function, idx_to_target)
+            table_dfs['average_test'] = get_average_metrics(*params, X_test,
+                                                            y_test_str, class_function, idx_to_target)
+    else:
+        table_dfs['binary_train'] = get_binary_metrics(*params, X_train, y_train.values)
+        table_dfs['binary_test'] = get_binary_metrics(*params, X_test, y_test.values)
 
     confusion_matrixes: dict[str, np.ndarray] = dict()
     confusion_matrixes['Logistic regression'] = confusion_matrix(y_test, logistic_regression.predict(X_test))

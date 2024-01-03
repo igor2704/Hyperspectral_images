@@ -2,3 +2,10 @@
 *.idea
 *.mypy_cache
 *__pycache__*
+draft.ipynb
+data/*
+annotation-hyperspectral-8e9249a95022.json
+catboost_info/*
+.~lock.description.xlsx#
+*ipynb_checkpoints*
+
