@@ -9,7 +9,7 @@ import pandas as pd
 import tifffile as tiff
 
 import scipy.stats
-from scipy.stats import chisquare, mannwhitneyu
+from scipy.stats import mannwhitneyu, ttest_ind, chisquare
 
 from collections import defaultdict, Counter
 
@@ -458,6 +458,94 @@ def get_mean_diff_and_confident_interval_df(hyper_imges: tp.Sequence[HyperImg],
     return mean, left, right
 
 
+def get_mannwhitneyu_p_value_df(hyper_imges: tp.Sequence[HyperImg],
+                                target_variable_1: str,
+                                target_variable_2: str,
+                                alternative: str = 'two-sided',
+                                params_scipy: dict[str, tp.Any] | None = None) -> pd.DataFrame:
+    """
+    Perform the Mann-Whitney U rank test on two groups.
+    Args:
+        hyper_imges (tp.Sequence[HyperImg]): the sequence of hyperspectral images.
+        target_variable_1 (str): first target vaiable name.
+        target_variable_2 (str): second target vaiable name.
+        alternative (str): defines the alternative hypothesis ('two-sided', 'less', 'greater'). Default is ‘two-sided’
+        params_scipy (dict[str, tp.Any] | None): dict with params for scipy.stats.mannwhitneyu.
+                                                Default None (no extra params).
+    Returns:
+        pd.DataFrame: table with p-values.
+    """
+    if len(hyper_imges) == 0:
+        raise EmptyHyperImgList
+
+    if not issubclass(type(hyper_imges[0]), HyperImg):
+        raise NeedHyperImgSubclass
+
+    if params_scipy is None:
+        params_scipy = dict()
+
+    arr_hyper_1 = np.hstack([img.get_medians().reshape(len(hyper_imges[0].medians), 1) for img in hyper_imges
+                             if img.target_variable == target_variable_1])
+    arr_hyper_2 = np.hstack([img.get_medians().reshape(len(hyper_imges[0].medians), 1) for img in hyper_imges
+                             if img.target_variable == target_variable_2])
+
+    assert len(arr_hyper_1) == len(arr_hyper_2) == len(hyper_imges[0].medians), len(arr_hyper_1)
+
+    p_value = []
+    for i in range(len(hyper_imges[0].medians)):
+        arr_hyper_1_i = arr_hyper_1[i]
+        arr_hyper_2_i = arr_hyper_2[i]
+
+        p_value.append((i * hyper_imges[0].camera_sensitive + hyper_imges[0].camera_begin_wavelenght,
+                        mannwhitneyu(arr_hyper_1_i, arr_hyper_2_i, alternative=alternative, **params_scipy)[1]))
+
+    return pd.DataFrame(p_value, columns=['wavelength, nm', 'p-value'])
+
+
+def get_ttest_p_value_df(hyper_imges: tp.Sequence[HyperImg],
+                        target_variable_1: str,
+                        target_variable_2: str,
+                        alternative: str = 'two-sided',
+                        params_scipy: dict[str, tp.Any] | None = None) -> pd.DataFrame:
+    """
+    Perform the independent t-test test on two groups.
+    Args:
+        hyper_imges (tp.Sequence[HyperImg]): the sequence of hyperspectral images.
+        target_variable_1 (str): first target vaiable name.
+        target_variable_2 (str): second target vaiable name.
+        alternative (str): defines the alternative hypothesis ('two-sided', 'less', 'greater'). Default is ‘two-sided’
+        params_scipy (dict[str, tp.Any] | None): dict with params for scipy.stats.mannwhitneyu.
+                                                Default None (no extra params).
+    Returns:
+        pd.DataFrame: table with p-values.
+    """
+    if len(hyper_imges) == 0:
+        raise EmptyHyperImgList
+
+    if not issubclass(type(hyper_imges[0]), HyperImg):
+        raise NeedHyperImgSubclass
+
+    if params_scipy is None:
+        params_scipy = dict()
+
+    arr_hyper_1 = np.hstack([img.get_medians().reshape(len(hyper_imges[0].medians), 1) for img in hyper_imges
+                             if img.target_variable == target_variable_1])
+    arr_hyper_2 = np.hstack([img.get_medians().reshape(len(hyper_imges[0].medians), 1) for img in hyper_imges
+                             if img.target_variable == target_variable_2])
+
+    assert len(arr_hyper_1) == len(arr_hyper_2) == len(hyper_imges[0].medians), len(arr_hyper_1)
+
+    p_value = []
+    for i in range(len(hyper_imges[0].medians)):
+        arr_hyper_1_i = arr_hyper_1[i]
+        arr_hyper_2_i = arr_hyper_2[i]
+
+        p_value.append((i * hyper_imges[0].camera_sensitive + hyper_imges[0].camera_begin_wavelenght,
+                        ttest_ind(arr_hyper_1_i, arr_hyper_2_i, alternative=alternative, **params_scipy)[1]))
+
+    return pd.DataFrame(p_value, columns=['wavelength, nm', 'p-value'])
+
+
 def get_chi2_p_value_df(hyper_imges: tp.Sequence[HyperImg],
                         target_variable_1: str,
                         target_variable_2: str,
@@ -523,50 +611,6 @@ def get_chi2_p_value_df(hyper_imges: tp.Sequence[HyperImg],
                                     chisquare(prob_1, f_exp=prob_2)[1]))
                 except RuntimeWarning:
                     raise RuntimeWarning('please, decrease number of bins')
-
-    return pd.DataFrame(p_value, columns=['wavelength, nm', 'p-value'])
-
-
-def get_mannwhitneyu_p_value_df(hyper_imges: tp.Sequence[HyperImg],
-                                target_variable_1: str,
-                                target_variable_2: str,
-                                alternative: str = 'two-sided',
-                                params_scipy: dict[str, tp.Any] | None = None) -> pd.DataFrame:
-    """
-    Perform the Mann-Whitney U rank test on two groups.
-    Args:
-        hyper_imges (tp.Sequence[HyperImg]): the sequence of hyperspectral images.
-        target_variable_1 (str): first target vaiable name.
-        target_variable_2 (str): second target vaiable name.
-        alternative (str): defines the alternative hypothesis ('two-sided', 'less', 'greater'). Default is ‘two-sided’
-        params_scipy (dict[str, tp.Any] | None): dict with params for scipy.stats.mannwhitneyu.
-                                                Default None (no extra params).
-    Returns:
-        pd.DataFrame: table with p-values.
-    """
-    if len(hyper_imges) == 0:
-        raise EmptyHyperImgList
-
-    if not issubclass(type(hyper_imges[0]), HyperImg):
-        raise NeedHyperImgSubclass
-
-    if params_scipy is None:
-        params_scipy = dict()
-
-    arr_hyper_1 = np.hstack([img.get_medians().reshape(len(hyper_imges[0].medians), 1) for img in hyper_imges
-                             if img.target_variable == target_variable_1])
-    arr_hyper_2 = np.hstack([img.get_medians().reshape(len(hyper_imges[0].medians), 1) for img in hyper_imges
-                             if img.target_variable == target_variable_2])
-
-    assert len(arr_hyper_1) == len(arr_hyper_2) == len(hyper_imges[0].medians), len(arr_hyper_1)
-
-    p_value = []
-    for i in range(len(hyper_imges[0].medians)):
-        arr_hyper_1_i = arr_hyper_1[i]
-        arr_hyper_2_i = arr_hyper_2[i]
-
-        p_value.append((i * hyper_imges[0].camera_sensitive + hyper_imges[0].camera_begin_wavelenght,
-                        mannwhitneyu(arr_hyper_1_i, arr_hyper_2_i, alternative=alternative, **params_scipy)[1]))
 
     return pd.DataFrame(p_value, columns=['wavelength, nm', 'p-value'])
 

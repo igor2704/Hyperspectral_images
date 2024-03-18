@@ -62,7 +62,7 @@ class TableHyperImg(HyperImg):
             self.black_calibration_img_name = self.table[self.table[self.name_column] == self.path.split('/')[-1]
                                                          ][self.black_calibr_name_column].iloc[0]
             self.bl_img = tiff.imread(dir_name + self.black_calibration_img_name).astype(np.float64)
-            new_img = np.where(self.bl_img > img, 0, img - self.bl_img)
+            new_img = img - self.bl_img
         else:
             self.bl_img = np.zeros(img.shape, dtype=np.float64)
             new_img = img    

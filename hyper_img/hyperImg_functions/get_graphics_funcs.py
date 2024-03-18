@@ -2,8 +2,9 @@ from hyper_img.hyperImg import HyperImg
 from hyper_img.hyperImg_functions.get_data_funcs import get_mean_diff_and_confident_interval_df, \
                                                         get_df_graphics_medians_wavelenght, \
                                                         get_df_pca_and_explained_variance, get_df_medians, \
-                                                        get_chi2_p_value_df, get_df_isomap, get_df_umap, \
-                                                        get_df_em_algorithm_clustering, get_mannwhitneyu_p_value_df
+                                                        get_ttest_p_value_df, get_df_isomap, get_df_umap, \
+                                                        get_df_em_algorithm_clustering, get_mannwhitneyu_p_value_df, \
+                                                        get_chi2_p_value_df
 
 import os
 
@@ -282,6 +283,90 @@ def get_2_umap_graph(hyper_imges: tp.Sequence[HyperImg],
                             width=png_width, height=png_height)
 
 
+def get_mannwhitneyu_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
+                                  target_variable_1: str,
+                                  target_variable_2: str,
+                                  alternative: str = 'two-sided',
+                                  params_scipy: dict[str, tp.Any] | None = None,
+                                  download_path: str = '',
+                                  with_png: bool = False,
+                                  png_scale: float = 8,
+                                  png_width: int = 500,
+                                  png_height: int = 700) -> None:
+    """
+    Plots p-value of Mann-Whitney U rank test versus wavelength.
+
+    Args:
+        hyper_imges (tp.Sequence[HyperImg]): the sequence of hyperspectral images.
+        target_variable_1 (str): first target vaiable name.
+        target_variable_2 (str): second target vaiable name.
+        alternative (str): defines the alternative hypothesis ('two-sided', 'less', 'greater'). Default is ‘two-sided’
+        params_scipy (dict[str, tp.Any] | None): dict with params for scipy.stats.mannwhitneyu.
+                                                Default None (no extra params).
+        download_path (str): if not equal to '', then save the graph as download_path.
+        with_png (bool): if true, then save plots in png. Default False.
+        png_scale (float): text scale in png plot. Default 5.
+        png_width (int): width png plot. Default 950.
+        png_height (int): height png plot. Default 700.
+        """
+
+    df = get_mannwhitneyu_p_value_df(hyper_imges, target_variable_1, target_variable_2, alternative, params_scipy)
+
+    fig = px.line(df, x='wavelength, nm', y='p-value',
+                  title=f'Mann–Whitney U test ({target_variable_1}, {target_variable_2}), alternative: {alternative}',
+                  markers=True)
+    fig.show()
+
+    if download_path:
+        fig.write_html(download_path)
+        if with_png:
+            change_png_fig(fig)
+            pio.write_image(fig, download_path.replace('.html', '.png'), scale=png_scale,
+                            width=png_width, height=png_height)
+
+
+def get_ttest_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
+                            target_variable_1: str,
+                            target_variable_2: str,
+                            alternative: str = 'two-sided',
+                            params_scipy: dict[str, tp.Any] | None = None,
+                            download_path: str = '',
+                            with_png: bool = False,
+                            png_scale: float = 8,
+                            png_width: int = 500,
+                            png_height: int = 700) -> None:
+    """
+    Plots p-value of independent t-test criterion versus wavelength.
+
+    Args:
+        hyper_imges (tp.Sequence[HyperImg]): the sequence of hyperspectral images.
+        target_variable_1 (str): first target vaiable name.
+        target_variable_2 (str): second target vaiable name.
+        alternative (str): defines the alternative hypothesis ('two-sided', 'less', 'greater'). Default is ‘two-sided’
+        params_scipy (dict[str, tp.Any] | None): dict with params for scipy.stats.mannwhitneyu.
+                                                Default None (no extra params).
+        download_path (str): if not equal to '', then save the graph as download_path.
+        with_png (bool): if true, then save plots in png. Default False.
+        png_scale (float): text scale in png plot. Default 5.
+        png_width (int): width png plot. Default 950.
+        png_height (int): height png plot. Default 700.
+        """
+
+    df = get_ttest_p_value_df(hyper_imges, target_variable_1, target_variable_2, alternative, params_scipy)
+
+    fig = px.line(df, x='wavelength, nm', y='p-value',
+                  title=f't-test criterion ({target_variable_1}, {target_variable_2}), alternative: {alternative}',
+                  markers=True)
+    fig.show()
+
+    if download_path:
+        fig.write_html(download_path)
+        if with_png:
+            change_png_fig(fig)
+            pio.write_image(fig, download_path.replace('.html', '.png'), scale=png_scale,
+                            width=png_width, height=png_height)
+
+
 def get_chi2_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
                           target_variable_1: str,
                           target_variable_2: str,
@@ -310,48 +395,6 @@ def get_chi2_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
 
     fig = px.line(df, x='wavelength, nm', y='p-value',
                   title=f'Chi-square criterion ({target_variable_1}, {target_variable_2}), number of bins: {number_bins}',
-                  markers=True)
-    fig.show()
-
-    if download_path:
-        fig.write_html(download_path)
-        if with_png:
-            change_png_fig(fig)
-            pio.write_image(fig, download_path.replace('.html', '.png'), scale=png_scale,
-                            width=png_width, height=png_height)
-
-
-def get_mannwhitneyu_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
-                                  target_variable_1: str,
-                                  target_variable_2: str,
-                                  alternative: str = 'two-sided',
-                                  params_scipy: dict[str, tp.Any] | None = None,
-                                  download_path: str = '',
-                                  with_png: bool = False,
-                                  png_scale: float = 8,
-                                  png_width: int = 500,
-                                  png_height: int = 700) -> None:
-    """
-    Plots p-value of chi 2 criterion versus wavelength.
-
-    Args:
-        hyper_imges (tp.Sequence[HyperImg]): the sequence of hyperspectral images.
-        target_variable_1 (str): first target vaiable name.
-        target_variable_2 (str): second target vaiable name.
-        alternative (str): defines the alternative hypothesis ('two-sided', 'less', 'greater'). Default is ‘two-sided’
-        params_scipy (dict[str, tp.Any] | None): dict with params for scipy.stats.mannwhitneyu.
-                                                Default None (no extra params).
-        download_path (str): if not equal to '', then save the graph as download_path.
-        with_png (bool): if true, then save plots in png. Default False.
-        png_scale (float): text scale in png plot. Default 5.
-        png_width (int): width png plot. Default 950.
-        png_height (int): height png plot. Default 700.
-        """
-
-    df = get_mannwhitneyu_p_value_df(hyper_imges, target_variable_1, target_variable_2, alternative, params_scipy)
-
-    fig = px.line(df, x='wavelength, nm', y='p-value',
-                  title=f'Mann–Whitney U test ({target_variable_1}, {target_variable_2}), alternative: {alternative}',
                   markers=True)
     fig.show()
 
@@ -453,6 +496,7 @@ def create_folder_with_all_graphs(hyper_imges: tp.Sequence[HyperImg],
                                   confident_interval_level: float = 0.95,
                                   mannwhitneyu_alternative: str = 'two-sided',
                                   mannwhitneyu_scipy_params: dict[str, tp.Any] | None = None,
+                                  ttest_scipy_params: dict[str, tp.Any] | None = None,
                                   with_png: bool = False,
                                   png_scale: float = 8,
                                   png_width: int = 500,
@@ -530,6 +574,7 @@ def create_folder_with_all_graphs(hyper_imges: tp.Sequence[HyperImg],
     names = np.unique([hyper_imges[i].target_variable for i in range(len(hyper_imges))
                        if hyper_imges[i].target_variable != ''])
     os.mkdir(folder_path + '/' + 'chi_2')
+    os.mkdir(folder_path + '/' + 'ttest')
     os.mkdir(folder_path + '/' + f'{confident_interval_level}_mean_confident_intervals')
     os.mkdir(folder_path + '/' + 'mannwhitneyu')
     lst = []
@@ -564,4 +609,10 @@ def create_folder_with_all_graphs(hyper_imges: tp.Sequence[HyperImg],
                                                          f'/mannwhitneyu_{tg_v_1}_{tg_v_2}.html',
                                            with_png=with_png, png_scale=png_scale,
                                            png_width=png_width, png_height=png_height)
+            get_ttest_p_value_graph(hyper_imges, tg_v_1, tg_v_2, mannwhitneyu_alternative,
+                                    ttest_scipy_params,
+                                    download_path=folder_path + '/' + 'ttest' +
+                                                  f'/ttest_{tg_v_1}_{tg_v_2}.html',
+                                    with_png=with_png, png_scale=png_scale,
+                                    png_width=png_width, png_height=png_height)
             lst.append((tg_v_1, tg_v_2))
