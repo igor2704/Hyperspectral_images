@@ -10,6 +10,7 @@ import tifffile as tiff
 
 import scipy.stats
 from scipy.stats import mannwhitneyu, ttest_ind, chisquare
+from statsmodels.stats.multitest import multipletests
 
 from collections import defaultdict, Counter
 
@@ -462,6 +463,7 @@ def get_mannwhitneyu_p_value_df(hyper_imges: tp.Sequence[HyperImg],
                                 target_variable_1: str,
                                 target_variable_2: str,
                                 alternative: str = 'two-sided',
+                                corrected_p_value_method: str | None = 'holm',
                                 params_scipy: dict[str, tp.Any] | None = None) -> pd.DataFrame:
     """
     Perform the Mann-Whitney U rank test on two groups.
@@ -472,6 +474,7 @@ def get_mannwhitneyu_p_value_df(hyper_imges: tp.Sequence[HyperImg],
         alternative (str): defines the alternative hypothesis ('two-sided', 'less', 'greater'). Default is ‘two-sided’
         params_scipy (dict[str, tp.Any] | None): dict with params for scipy.stats.mannwhitneyu.
                                                 Default None (no extra params).
+        corrected_p_value_method (str | None): method from statsmodel multipletests. Default 'holm'.
     Returns:
         pd.DataFrame: table with p-values.
     """
@@ -492,20 +495,26 @@ def get_mannwhitneyu_p_value_df(hyper_imges: tp.Sequence[HyperImg],
     assert len(arr_hyper_1) == len(arr_hyper_2) == len(hyper_imges[0].medians), len(arr_hyper_1)
 
     p_value = []
+    wavelen = []
     for i in range(len(hyper_imges[0].medians)):
         arr_hyper_1_i = arr_hyper_1[i]
         arr_hyper_2_i = arr_hyper_2[i]
 
-        p_value.append((i * hyper_imges[0].camera_sensitive + hyper_imges[0].camera_begin_wavelenght,
-                        mannwhitneyu(arr_hyper_1_i, arr_hyper_2_i, alternative=alternative, **params_scipy)[1]))
-
-    return pd.DataFrame(p_value, columns=['wavelength, nm', 'p-value'])
+        wavelen.append(i * hyper_imges[0].camera_sensitive + hyper_imges[0].camera_begin_wavelenght)
+        p_value.append(mannwhitneyu(arr_hyper_1_i, arr_hyper_2_i, alternative=alternative, **params_scipy)[1])
+    
+    if corrected_p_value_method is not None:
+        _, corrected_pvals, _, _ = multipletests(p_value, method=corrected_p_value_method)
+    else:
+        _, corrected_pvals, _, _ = multipletests(p_value, method=corrected_p_value_method)
+    return pd.DataFrame(list(zip(wavelen, corrected_pvals)), columns=['wavelength, nm', 'p-value'])
 
 
 def get_ttest_p_value_df(hyper_imges: tp.Sequence[HyperImg],
                         target_variable_1: str,
                         target_variable_2: str,
                         alternative: str = 'two-sided',
+                        corrected_p_value_method: str | None = 'holm',
                         params_scipy: dict[str, tp.Any] | None = None) -> pd.DataFrame:
     """
     Perform the independent t-test test on two groups.
@@ -516,6 +525,7 @@ def get_ttest_p_value_df(hyper_imges: tp.Sequence[HyperImg],
         alternative (str): defines the alternative hypothesis ('two-sided', 'less', 'greater'). Default is ‘two-sided’
         params_scipy (dict[str, tp.Any] | None): dict with params for scipy.stats.mannwhitneyu.
                                                 Default None (no extra params).
+        corrected_p_value_method (str | None): method from statsmodel multipletests. Default 'holm'.
     Returns:
         pd.DataFrame: table with p-values.
     """
@@ -536,19 +546,25 @@ def get_ttest_p_value_df(hyper_imges: tp.Sequence[HyperImg],
     assert len(arr_hyper_1) == len(arr_hyper_2) == len(hyper_imges[0].medians), len(arr_hyper_1)
 
     p_value = []
+    wavelen = []
     for i in range(len(hyper_imges[0].medians)):
         arr_hyper_1_i = arr_hyper_1[i]
         arr_hyper_2_i = arr_hyper_2[i]
 
-        p_value.append((i * hyper_imges[0].camera_sensitive + hyper_imges[0].camera_begin_wavelenght,
-                        ttest_ind(arr_hyper_1_i, arr_hyper_2_i, alternative=alternative, **params_scipy)[1]))
+        wavelen.append(i * hyper_imges[0].camera_sensitive + hyper_imges[0].camera_begin_wavelenght)
+        p_value.append(ttest_ind(arr_hyper_1_i, arr_hyper_2_i, alternative=alternative, **params_scipy)[1])
 
-    return pd.DataFrame(p_value, columns=['wavelength, nm', 'p-value'])
+    if corrected_p_value_method is not None:
+        _, corrected_pvals, _, _ = multipletests(p_value, method=corrected_p_value_method)
+    else:
+        _, corrected_pvals, _, _ = multipletests(p_value, method=corrected_p_value_method)
+    return pd.DataFrame(list(zip(wavelen, corrected_pvals)), columns=['wavelength, nm', 'p-value'])
 
 
 def get_chi2_p_value_df(hyper_imges: tp.Sequence[HyperImg],
                         target_variable_1: str,
                         target_variable_2: str,
+                        corrected_p_value_method: str | None = 'holm',
                         number_bins: int = 5) -> pd.DataFrame:
 
     """
@@ -560,6 +576,7 @@ def get_chi2_p_value_df(hyper_imges: tp.Sequence[HyperImg],
          target_variable_1 (str): first target vaiable name.
          target_variable_2 (str): second target vaiable name.
          number_bins (int): number of bins. Defaults 5.
+         corrected_p_value_method (str | None): method from statsmodel multipletests. Default 'holm'.
 
     Raises:
         NeedHyperImgSubclass: the image class must be a subclass of HyperImg .
@@ -582,6 +599,7 @@ def get_chi2_p_value_df(hyper_imges: tp.Sequence[HyperImg],
     assert len(arr_hyper_1) == len(arr_hyper_2) == len(hyper_imges[0].medians), len(arr_hyper_1)
 
     p_value = []
+    wavelen = []
     for i in range(len(hyper_imges[0].medians)):
         arr_hyper_1_i = arr_hyper_1[i]
         arr_hyper_2_i = arr_hyper_2[i]
@@ -603,16 +621,20 @@ def get_chi2_p_value_df(hyper_imges: tp.Sequence[HyperImg],
         with warnings.catch_warnings():
             warnings.filterwarnings('error')
             try:
-                p_value.append((i * hyper_imges[0].camera_sensitive + hyper_imges[0].camera_begin_wavelenght,
-                                chisquare(prob_2, f_exp=prob_1)[1]))
+                wavelen.append(i * hyper_imges[0].camera_sensitive + hyper_imges[0].camera_begin_wavelenght)
+                p_value.append(chisquare(prob_2, f_exp=prob_1)[1])
             except RuntimeWarning:
                 try:
-                    p_value.append((i * hyper_imges[0].camera_sensitive + hyper_imges[0].camera_begin_wavelenght,
-                                    chisquare(prob_1, f_exp=prob_2)[1]))
+                    wavelen.append(i * hyper_imges[0].camera_sensitive + hyper_imges[0].camera_begin_wavelenght)
+                    p_value.append(chisquare(prob_1, f_exp=prob_2)[1])
                 except RuntimeWarning:
                     raise RuntimeWarning('please, decrease number of bins')
 
-    return pd.DataFrame(p_value, columns=['wavelength, nm', 'p-value'])
+    if corrected_p_value_method is not None:
+        _, corrected_pvals, _, _ = multipletests(p_value, method=corrected_p_value_method)
+    else:
+        _, corrected_pvals, _, _ = multipletests(p_value, method=corrected_p_value_method)
+    return pd.DataFrame(list(zip(wavelen, corrected_pvals)), columns=['wavelength, nm', 'p-value'])
 
 
 def get_df_em_algorithm_clustering(hyper_imges: tp.Sequence[HyperImg],

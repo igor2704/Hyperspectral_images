@@ -287,6 +287,7 @@ def get_mannwhitneyu_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
                                   target_variable_1: str,
                                   target_variable_2: str,
                                   alternative: str = 'two-sided',
+                                  corrected_p_value_method: str | None = 'holm',
                                   params_scipy: dict[str, tp.Any] | None = None,
                                   download_path: str = '',
                                   with_png: bool = False,
@@ -301,6 +302,7 @@ def get_mannwhitneyu_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
         target_variable_1 (str): first target vaiable name.
         target_variable_2 (str): second target vaiable name.
         alternative (str): defines the alternative hypothesis ('two-sided', 'less', 'greater'). Default is ‘two-sided’
+        corrected_p_value_method (str | None): method from statsmodel multipletests. Default 'holm'.
         params_scipy (dict[str, tp.Any] | None): dict with params for scipy.stats.mannwhitneyu.
                                                 Default None (no extra params).
         download_path (str): if not equal to '', then save the graph as download_path.
@@ -310,10 +312,12 @@ def get_mannwhitneyu_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
         png_height (int): height png plot. Default 700.
         """
 
-    df = get_mannwhitneyu_p_value_df(hyper_imges, target_variable_1, target_variable_2, alternative, params_scipy)
+    df = get_mannwhitneyu_p_value_df(hyper_imges, target_variable_1, target_variable_2, 
+                                     alternative, corrected_p_value_method, params_scipy)
 
     fig = px.line(df, x='wavelength, nm', y='p-value',
-                  title=f'Mann–Whitney U test ({target_variable_1}, {target_variable_2}), alternative: {alternative}',
+                  title=f'Mann–Whitney U test ({target_variable_1}, {target_variable_2}), alternative: {alternative}'
+                  + f', correction for multiple testing: {corrected_p_value_method}',
                   markers=True)
     fig.show()
 
@@ -329,6 +333,7 @@ def get_ttest_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
                             target_variable_1: str,
                             target_variable_2: str,
                             alternative: str = 'two-sided',
+                            corrected_p_value_method: str | None = 'holm',
                             params_scipy: dict[str, tp.Any] | None = None,
                             download_path: str = '',
                             with_png: bool = False,
@@ -343,6 +348,7 @@ def get_ttest_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
         target_variable_1 (str): first target vaiable name.
         target_variable_2 (str): second target vaiable name.
         alternative (str): defines the alternative hypothesis ('two-sided', 'less', 'greater'). Default is ‘two-sided’
+        corrected_p_value_method (str | None): method from statsmodel multipletests. Default 'holm'.
         params_scipy (dict[str, tp.Any] | None): dict with params for scipy.stats.mannwhitneyu.
                                                 Default None (no extra params).
         download_path (str): if not equal to '', then save the graph as download_path.
@@ -352,10 +358,12 @@ def get_ttest_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
         png_height (int): height png plot. Default 700.
         """
 
-    df = get_ttest_p_value_df(hyper_imges, target_variable_1, target_variable_2, alternative, params_scipy)
+    df = get_ttest_p_value_df(hyper_imges, target_variable_1, target_variable_2, 
+                              alternative, corrected_p_value_method, params_scipy)
 
     fig = px.line(df, x='wavelength, nm', y='p-value',
-                  title=f't-test criterion ({target_variable_1}, {target_variable_2}), alternative: {alternative}',
+                  title=f't-test criterion ({target_variable_1}, {target_variable_2}), alternative: {alternative}'
+                  + f', correction for multiple testing: {corrected_p_value_method}',
                   markers=True)
     fig.show()
 
@@ -370,6 +378,7 @@ def get_ttest_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
 def get_chi2_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
                           target_variable_1: str,
                           target_variable_2: str,
+                          corrected_p_value_method: str | None = 'holm',
                           number_bins: int = 5,
                           download_path: str = '',
                           with_png: bool = False,
@@ -383,6 +392,7 @@ def get_chi2_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
         hyper_imges (tp.Sequence[HyperImg]): the sequence of hyperspectral images.
         target_variable_1 (str): first target vaiable name.
         target_variable_2 (str): second target vaiable name.
+        corrected_p_value_method (str | None): method from statsmodel multipletests. Default 'holm'.
         number_bins (int): number of bins. Default 5.
         download_path (str): if not equal to '', then save the graph as download_path.
         with_png (bool): if true, then save plots in png. Default False.
@@ -391,10 +401,12 @@ def get_chi2_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
         png_height (int): height png plot. Default 700.
         """
 
-    df = get_chi2_p_value_df(hyper_imges, target_variable_1, target_variable_2, number_bins)
+    df = get_chi2_p_value_df(hyper_imges, target_variable_1, target_variable_2, 
+                             corrected_p_value_method, number_bins)
 
     fig = px.line(df, x='wavelength, nm', y='p-value',
-                  title=f'Chi-square criterion ({target_variable_1}, {target_variable_2}), number of bins: {number_bins}',
+                  title=f'Chi-square criterion ({target_variable_1}, {target_variable_2}), number of bins: {number_bins}'
+                  + f', correction for multiple testing: {corrected_p_value_method}',
                   markers=True)
     fig.show()
 
@@ -497,6 +509,7 @@ def create_folder_with_all_graphs(hyper_imges: tp.Sequence[HyperImg],
                                   mannwhitneyu_alternative: str = 'two-sided',
                                   mannwhitneyu_scipy_params: dict[str, tp.Any] | None = None,
                                   ttest_scipy_params: dict[str, tp.Any] | None = None,
+                                  corrected_p_value_method: str | None = 'holm',
                                   with_png: bool = False,
                                   png_scale: float = 8,
                                   png_width: int = 500,
@@ -516,6 +529,7 @@ def create_folder_with_all_graphs(hyper_imges: tp.Sequence[HyperImg],
         number_bins_chi2 (int): number of bins in the chi-square test. If division by zero occurs, then the number of
                                 bins decrease as long as this exception/warnings persist. Defaults 7.
         confident_interval_level: level for sample mean difference confident interval. Default 0.95 (95%).
+        corrected_p_value_method (str | None): method from statsmodel multipletests. Default 'holm'.
     """
     os.mkdir(folder_path)
     get_medians_wavelenght_graph(hyper_imges=hyper_imges, color=color,
@@ -589,7 +603,7 @@ def create_folder_with_all_graphs(hyper_imges: tp.Sequence[HyperImg],
                 bins = number_bins_chi2
                 while True:
                     try:
-                        get_chi2_p_value_graph(hyper_imges, tg_v_1, tg_v_2, number_bins=bins,
+                        get_chi2_p_value_graph(hyper_imges, tg_v_1, tg_v_2, corrected_p_value_method, number_bins=bins,
                                                 download_path=folder_path + '/' + 'chi_2/' + f'chi_2_{tg_v_1}_{tg_v_2}.html',
                                                 with_png=with_png, png_scale=png_scale,
                                                 png_width=png_width, png_height=png_height)
@@ -604,12 +618,14 @@ def create_folder_with_all_graphs(hyper_imges: tp.Sequence[HyperImg],
                                                        with_png=with_png, png_scale=png_scale,
                                                        png_width=png_width, png_height=png_height)
             get_mannwhitneyu_p_value_graph(hyper_imges, tg_v_1, tg_v_2, mannwhitneyu_alternative,
+                                           corrected_p_value_method,
                                            mannwhitneyu_scipy_params,
                                            download_path=folder_path + '/' + 'mannwhitneyu' +
                                                          f'/mannwhitneyu_{tg_v_1}_{tg_v_2}.html',
                                            with_png=with_png, png_scale=png_scale,
                                            png_width=png_width, png_height=png_height)
             get_ttest_p_value_graph(hyper_imges, tg_v_1, tg_v_2, mannwhitneyu_alternative,
+                                    corrected_p_value_method,
                                     ttest_scipy_params,
                                     download_path=folder_path + '/' + 'ttest' +
                                                   f'/ttest_{tg_v_1}_{tg_v_2}.html',
