@@ -36,6 +36,8 @@ import umap.plot
 
 import warnings
 
+from hyper_img.hyperImg_functions.plotly_color import plotly_color
+
 
 class ThisMethodDoesNotExist(Exception):
     pass
@@ -69,7 +71,8 @@ def get_mean_diff_and_confident_interval_graph(hyper_imges: tp.Sequence[HyperImg
                                                with_png: bool = False,
                                                png_scale: float = 8,
                                                png_width: int = 500,
-                                               png_height: int = 700) -> None:
+                                               png_height: int = 700,
+                                               mean_aggregate: bool = False) -> None:
     """
     Plots confidence interval for sample mean differences.
 
@@ -87,7 +90,7 @@ def get_mean_diff_and_confident_interval_graph(hyper_imges: tp.Sequence[HyperImg
 
     warnings.filterwarnings('ignore')
 
-    m, l, r = get_mean_diff_and_confident_interval_df(hyper_imges, target_variable_1, target_variable_2, level)
+    m, l, r = get_mean_diff_and_confident_interval_df(hyper_imges, target_variable_1, target_variable_2, level, mean_aggregate)
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=l['Wavelength'], y=l['Median'],
@@ -118,6 +121,7 @@ def get_medians_wavelenght_graph(hyper_imges: tp.Sequence[HyperImg],
                                  png_scale: float = 8,
                                  png_width: int = 500,
                                  png_height: int = 700,
+                                 mean_aggregate: bool = False,
                                  **kwargs) -> None:
     """
     Plots medians versus wavelength.
@@ -132,7 +136,7 @@ def get_medians_wavelenght_graph(hyper_imges: tp.Sequence[HyperImg],
         png_height (int): height png plot. Default 700.
     """
 
-    df = get_df_graphics_medians_wavelenght(hyper_imges)
+    df = get_df_graphics_medians_wavelenght(hyper_imges, mean_aggregate)
 
     if color is not None:
         fig = px.line(df, x='Wavelength', y='Median', color=hyper_imges[0].target_varible_name,
@@ -163,7 +167,8 @@ def get_2_pca_graph(hyper_imges: tp.Sequence[HyperImg],
                     with_png: bool = False,
                     png_scale: float = 8,
                     png_width: int = 500,
-                    png_height: int = 700) -> None:
+                    png_height: int = 700,
+                    mean_aggregate: bool = False) -> None:
     """
     Plots PCA with 2 principal components.
 
@@ -177,13 +182,40 @@ def get_2_pca_graph(hyper_imges: tp.Sequence[HyperImg],
         png_height (int): height png plot. Default 700.
     """
 
-    df, var = get_df_pca_and_explained_variance(hyper_imges, 2)
+    df, var = get_df_pca_and_explained_variance(hyper_imges, 2, mean_aggregate)
 
-    if color is not None:
-        fig = px.scatter(df, x='1', y='2', color=hyper_imges[0].target_varible_name, hover_name='Object name',
-                         color_discrete_map=color)
+    traces = []
+    color_dct = dict()
+    if color is None:
+        for i, name in enumerate(df[hyper_imges[0].target_varible_name].unique()):
+            color_dct[name] = plotly_color[i]
     else:
-        fig = px.scatter(df, x='1', y='2', color=hyper_imges[0].target_varible_name, hover_name='Object name')
+        color_dct = color
+    df['group_name'] = df[hyper_imges[0].target_varible_name] + '_' + df['Object name']
+    uniq_names = set()
+    for group, data in df.groupby('group_name'):
+        trace = go.Scatter(
+            x=data['1'],
+            y=data['2'],
+            mode='lines+markers',
+            line=dict(color=color_dct[data[hyper_imges[0].target_varible_name].iloc[0]],
+                      width=0.3),
+            name=data[hyper_imges[0].target_varible_name].iloc[0],
+            marker=dict(symbol='circle'),
+            text=data['Object name'].iloc[0],
+            showlegend=False if data[hyper_imges[0].target_varible_name].iloc[0] in uniq_names else True
+        )
+        uniq_names.add(data[hyper_imges[0].target_varible_name].iloc[0])
+        traces.append(trace)
+
+    fig = go.Figure(data=traces)
+
+    # if color is not None:
+    #     fig = px.scatter(df, x='1', y='2', color=hyper_imges[0].target_varible_name, hover_name='Object name',
+    #                      color_discrete_map=color, line_group='Object name')
+    # else:
+    #     fig = px.scatter(df, x='1', y='2', color=hyper_imges[0].target_varible_name, hover_name='Object name',
+    #                      line_group='Object name')
 
     fig.update_layout(title=f'PCA',
                       xaxis_title=f'first main component (explained variance {var[0]: 0.4f})',
@@ -206,6 +238,7 @@ def get_2_isomap_graph(hyper_imges: tp.Sequence[HyperImg],
                        png_scale: float = 8,
                        png_width: int = 500,
                        png_height: int = 700,
+                       mean_aggregate: bool = False,
                        **kwargs) -> None:
     """
     Plots ISOMAP with 2 principal components.
@@ -220,14 +253,33 @@ def get_2_isomap_graph(hyper_imges: tp.Sequence[HyperImg],
         png_height (int): height png plot. Default 700.
     """
 
-    df = get_df_isomap(hyper_imges, n_neighbors, **kwargs)
+    df = get_df_isomap(hyper_imges, n_neighbors, mean_aggregate=mean_aggregate, **kwargs)
 
-    if color is not None:
-        fig = px.scatter(df, x='1', y='2', color=hyper_imges[0].target_varible_name, hover_name='Object name',
-                         color_discrete_map=color)
+    traces = []
+    color_dct = dict()
+    if color is None:
+        for i, name in enumerate(df[hyper_imges[0].target_varible_name].unique()):
+            color_dct[name] = plotly_color[i]
     else:
-        fig = px.scatter(df, x='1', y='2', color=hyper_imges[0].target_varible_name, hover_name='Object name')
+        color_dct = color
+    df['group_name'] = df[hyper_imges[0].target_varible_name] + '_' + df['Object name']
+    uniq_names = set()
+    for group, data in df.groupby('group_name'):
+        trace = go.Scatter(
+            x=data['1'],
+            y=data['2'],
+            mode='lines+markers',
+            line=dict(color=color_dct[data[hyper_imges[0].target_varible_name].iloc[0]],
+                      width=0.3),
+            name=data[hyper_imges[0].target_varible_name].iloc[0],
+            marker=dict(symbol='circle'),
+            text=data['Object name'].iloc[0],
+            showlegend=False if data[hyper_imges[0].target_varible_name].iloc[0] in uniq_names else True
+        )
+        uniq_names.add(data[hyper_imges[0].target_varible_name].iloc[0])
+        traces.append(trace)
 
+    fig = go.Figure(data=traces)
     fig.update_layout(title=f'ISOMAP',
                       xaxis_title=f'ISOMAP 1',
                       yaxis_title=f'ISOMAP 2')
@@ -248,6 +300,7 @@ def get_2_umap_graph(hyper_imges: tp.Sequence[HyperImg],
                      png_scale: float = 8,
                      png_width: int = 500,
                      png_height: int = 700,
+                     mean_aggregate: bool = False,
                      **kwargs) -> None:
     """
     Plots UMAP.
@@ -262,13 +315,33 @@ def get_2_umap_graph(hyper_imges: tp.Sequence[HyperImg],
         png_height (int): height png plot. Default 700.
     """
 
-    df = get_df_umap(hyper_imges, n_neighbors, **kwargs)
+    df = get_df_umap(hyper_imges, n_neighbors, mean_aggregate=mean_aggregate, **kwargs)
 
-    if color is not None:
-        fig = px.scatter(df, x='1', y='2', color=hyper_imges[0].target_varible_name, hover_name='Object name',
-                         color_discrete_map=color)
+    traces = []
+    color_dct = dict()
+    if color is None:
+        for i, name in enumerate(df[hyper_imges[0].target_varible_name].unique()):
+            color_dct[name] = plotly_color[i]
     else:
-        fig = px.scatter(df, x='1', y='2', color=hyper_imges[0].target_varible_name, hover_name='Object name')
+        color_dct = color
+    df['group_name'] = df[hyper_imges[0].target_varible_name] + '_' + df['Object name']
+    uniq_names = set()
+    for group, data in df.groupby('group_name'):
+        trace = go.Scatter(
+            x=data['1'],
+            y=data['2'],
+            mode='lines+markers',
+            line=dict(color=color_dct[data[hyper_imges[0].target_varible_name].iloc[0]],
+                      width=0.3),
+            name=data[hyper_imges[0].target_varible_name].iloc[0],
+            marker=dict(symbol='circle'),
+            text=data['Object name'].iloc[0],
+            showlegend=False if data[hyper_imges[0].target_varible_name].iloc[0] in uniq_names else True
+        )
+        uniq_names.add(data[hyper_imges[0].target_varible_name].iloc[0])
+        traces.append(trace)
+
+    fig = go.Figure(data=traces)
 
     fig.update_layout(title=f'UMAP',
                       xaxis_title=f'UMAP 1',
@@ -293,7 +366,8 @@ def get_mannwhitneyu_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
                                   with_png: bool = False,
                                   png_scale: float = 8,
                                   png_width: int = 500,
-                                  png_height: int = 700) -> None:
+                                  png_height: int = 700,
+                                  mean_aggregate: bool = False) -> None:
     """
     Plots p-value of Mann-Whitney U rank test versus wavelength.
 
@@ -313,7 +387,7 @@ def get_mannwhitneyu_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
         """
 
     df = get_mannwhitneyu_p_value_df(hyper_imges, target_variable_1, target_variable_2, 
-                                     alternative, corrected_p_value_method, params_scipy)
+                                     alternative, corrected_p_value_method, params_scipy, mean_aggregate)
 
     fig = px.line(df, x='wavelength, nm', y='p-value',
                   title=f'Mann–Whitney U test ({target_variable_1}, {target_variable_2}), alternative: {alternative}'
@@ -339,7 +413,8 @@ def get_ttest_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
                             with_png: bool = False,
                             png_scale: float = 8,
                             png_width: int = 500,
-                            png_height: int = 700) -> None:
+                            png_height: int = 700,
+                            mean_aggregate: bool = False) -> None:
     """
     Plots p-value of independent t-test criterion versus wavelength.
 
@@ -359,7 +434,7 @@ def get_ttest_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
         """
 
     df = get_ttest_p_value_df(hyper_imges, target_variable_1, target_variable_2, 
-                              alternative, corrected_p_value_method, params_scipy)
+                              alternative, corrected_p_value_method, params_scipy, mean_aggregate)
 
     fig = px.line(df, x='wavelength, nm', y='p-value',
                   title=f't-test criterion ({target_variable_1}, {target_variable_2}), alternative: {alternative}'
@@ -384,7 +459,8 @@ def get_chi2_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
                           with_png: bool = False,
                           png_scale: float = 8,
                           png_width: int = 500,
-                          png_height: int = 700) -> None:
+                          png_height: int = 700,
+                          mean_aggregate: bool = False) -> None:
     """
     Plots p-value of chi 2 criterion versus wavelength.
 
@@ -402,7 +478,7 @@ def get_chi2_p_value_graph(hyper_imges: tp.Sequence[HyperImg],
         """
 
     df = get_chi2_p_value_df(hyper_imges, target_variable_1, target_variable_2, 
-                             corrected_p_value_method, number_bins)
+                             corrected_p_value_method, number_bins, mean)
 
     fig = px.line(df, x='wavelength, nm', y='p-value',
                   title=f'Chi-square criterion ({target_variable_1}, {target_variable_2}), number of bins: {number_bins}'
@@ -513,7 +589,10 @@ def create_folder_with_all_graphs(hyper_imges: tp.Sequence[HyperImg],
                                   with_png: bool = False,
                                   png_scale: float = 8,
                                   png_width: int = 500,
-                                  png_height: int = 700) -> None:
+                                  png_height: int = 700,
+                                  mean_aggregate_dim_reduction: bool = False,
+                                  mean_aggregate_visualization: bool = False,
+                                  mean_aggregate_stat_anal: bool = True) -> None:
     """
     Plot all graphics.
 
@@ -535,59 +614,69 @@ def create_folder_with_all_graphs(hyper_imges: tp.Sequence[HyperImg],
     get_medians_wavelenght_graph(hyper_imges=hyper_imges, color=color,
                                  download_path=folder_path + '/medians_wavelen.html',
                                  with_png=with_png, png_scale=png_scale,
-                                 png_width=png_width, png_height=png_height)
+                                 png_width=png_width, png_height=png_height,
+                                 mean_aggregate=mean_aggregate_visualization)
     os.mkdir(folder_path + '/visualization')
     get_2_pca_graph(hyper_imges=hyper_imges, color=color, download_path=folder_path + '/visualization' + '/pca.html',
                     with_png=with_png, png_scale=png_scale,
-                    png_width=png_width, png_height=png_height)
+                    png_width=png_width, png_height=png_height,
+                    mean_aggregate=mean_aggregate_dim_reduction)
     get_2_umap_graph(hyper_imges=hyper_imges, color=color, n_neighbors=n_neighbors_umap,
                      download_path=folder_path + '/visualization' + '/umap.html',
                      with_png=with_png, png_scale=png_scale,
-                     png_width=png_width, png_height=png_height)
+                     png_width=png_width, png_height=png_height,
+                     mean_aggregate=mean_aggregate_dim_reduction)
     get_2_isomap_graph(hyper_imges=hyper_imges, n_neighbors=n_neighbors_isomap,
                        color=color, download_path=folder_path + '/visualization' + '/isomap.html',
                        with_png=with_png, png_scale=png_scale,
-                       png_width=png_width, png_height=png_height)
+                       png_width=png_width, png_height=png_height,
+                       mean_aggregate=mean_aggregate_dim_reduction)
     os.mkdir(folder_path + '/clusterization')
     get_em_algorithm_clustering_graph(hyper_imges, downscaling_method='PCA', dim_clusterization=dim_clusterization,
                                       n_clusters=n_clusters, init_params='random', color=color,
                                       download_path=folder_path + '/clusterization' + '/clusterization_pca_random.html',
                                       download_path_table=folder_path + '/clusterization' + '/clusterization_pca_random.xlsx',
                                       with_png=with_png, png_scale=png_scale,
-                                      png_width=png_width, png_height=png_height)
+                                      png_width=png_width, png_height=png_height,
+                                      mean_aggregate=mean_aggregate_dim_reduction)
     get_em_algorithm_clustering_graph(hyper_imges, downscaling_method='PCA', dim_clusterization=dim_clusterization,
                                       n_clusters=n_clusters, init_params='kmeans', color=color,
                                       download_path=folder_path + '/clusterization' + '/clusterization_pca_kmeans.html',
                                       download_path_table=folder_path + '/clusterization' + '/clusterization_pca_kmeans.xlsx',
                                       with_png=with_png, png_scale=png_scale,
-                                      png_width=png_width, png_height=png_height)
+                                      png_width=png_width, png_height=png_height,
+                                      mean_aggregate=mean_aggregate_dim_reduction)
     get_em_algorithm_clustering_graph(hyper_imges, downscaling_method='ISOMAP', dim_clusterization=dim_clusterization,
                                       n_clusters=n_clusters, init_params='random', color=color,
                                       download_path=folder_path + '/clusterization' + '/clusterization_isomap_random.html',
                                       download_path_table=folder_path + '/clusterization' + '/clusterization_isomap_random.xlsx',
                                       with_png=with_png, png_scale=png_scale, n_neighbors_isomap=n_neighbors_isomap,
-                                      png_width=png_width, png_height=png_height)
+                                      png_width=png_width, png_height=png_height,
+                                      mean_aggregate=mean_aggregate_dim_reduction)
     get_em_algorithm_clustering_graph(hyper_imges, downscaling_method='ISOMAP', dim_clusterization=dim_clusterization,
                                       n_clusters=n_clusters, init_params='kmeans', color=color,
                                       download_path=folder_path + '/clusterization' + '/clusterization_isomap_kmeans.html',
                                       download_path_table=folder_path + '/clusterization' + '/clusterization_isomap_kmeans.xlsx',
                                       with_png=with_png, png_scale=png_scale, n_neighbors_isomap=n_neighbors_isomap,
-                                      png_width=png_width, png_height=png_height)
+                                      png_width=png_width, png_height=png_height,
+                                      mean_aggregate=mean_aggregate_dim_reduction)
     get_em_algorithm_clustering_graph(hyper_imges, downscaling_method='UMAP', dim_clusterization=dim_clusterization,
                                       n_clusters=n_clusters, init_params='random', color=color,
                                       download_path=folder_path + '/clusterization' + '/clusterization_umap_random.html',
                                       download_path_table=folder_path + '/clusterization' + '/clusterization_umap_random.xlsx',
                                       with_png=with_png, png_scale=png_scale, n_neighbors_umap=n_neighbors_umap,
-                                      png_width=png_width, png_height=png_height)
+                                      png_width=png_width, png_height=png_height,
+                                      mean_aggregate=mean_aggregate_dim_reduction)
     get_em_algorithm_clustering_graph(hyper_imges, downscaling_method='UMAP', dim_clusterization=dim_clusterization,
                                       n_clusters=n_clusters, init_params='kmeans', color=color,
                                       download_path=folder_path + '/clusterization' + '/clusterization_umap_kmeans.html',
                                       download_path_table=folder_path + '/clusterization' + '/clusterization_umap_kmeans.xlsx',
                                       with_png=with_png, png_scale=png_scale, n_neighbors_umap=n_neighbors_umap,
-                                      png_width=png_width, png_height=png_height)
+                                      png_width=png_width, png_height=png_height,
+                                      mean_aggregate=mean_aggregate_dim_reduction)
     names = np.unique([hyper_imges[i].target_variable for i in range(len(hyper_imges))
                        if hyper_imges[i].target_variable != ''])
-    os.mkdir(folder_path + '/' + 'chi_2')
+    # os.mkdir(folder_path + '/' + 'chi_2')
     os.mkdir(folder_path + '/' + 'ttest')
     os.mkdir(folder_path + '/' + f'{confident_interval_level}_mean_confident_intervals')
     os.mkdir(folder_path + '/' + 'mannwhitneyu')
@@ -596,39 +685,44 @@ def create_folder_with_all_graphs(hyper_imges: tp.Sequence[HyperImg],
         for tg_v_2 in names:
             if tg_v_2 == tg_v_1:
                 continue
-            with warnings.catch_warnings():
-                warnings.filterwarnings('error')
-                if (tg_v_1, tg_v_2) in lst or (tg_v_2, tg_v_1) in lst:
-                    continue
-                bins = number_bins_chi2
-                while True:
-                    try:
-                        get_chi2_p_value_graph(hyper_imges, tg_v_1, tg_v_2, corrected_p_value_method, number_bins=bins,
-                                                download_path=folder_path + '/' + 'chi_2/' + f'chi_2_{tg_v_1}_{tg_v_2}.html',
-                                                with_png=with_png, png_scale=png_scale,
-                                                png_width=png_width, png_height=png_height)
-                    except RuntimeWarning:
-                        bins -= 1
-                    else:
-                        break
+            if (tg_v_1, tg_v_2) in lst or (tg_v_2, tg_v_1) in lst:
+                continue
+            # with warnings.catch_warnings():
+            #     warnings.filterwarnings('error')
+            #     if (tg_v_1, tg_v_2) in lst or (tg_v_2, tg_v_1) in lst:
+            #         continue
+            #     bins = number_bins_chi2
+            #     while True:
+            #         try:
+            #             get_chi2_p_value_graph(hyper_imges, tg_v_1, tg_v_2, corrected_p_value_method, number_bins=bins,
+            #                                     download_path=folder_path + '/' + 'chi_2/' + f'chi_2_{tg_v_1}_{tg_v_2}.html',
+            #                                     with_png=with_png, png_scale=png_scale,
+            #                                     png_width=png_width, png_height=png_height)
+            #         except RuntimeWarning:
+            #             bins -= 1
+            #         else:
+            #             break
             get_mean_diff_and_confident_interval_graph(hyper_imges, tg_v_1, tg_v_2, confident_interval_level,
                                                        download_path=folder_path + '/' +
                                                                      f'{confident_interval_level}_mean_confident_intervals'
                                                                      + f'/conf_int_{tg_v_1}_{tg_v_2}.html',
                                                        with_png=with_png, png_scale=png_scale,
-                                                       png_width=png_width, png_height=png_height)
+                                                       png_width=png_width, png_height=png_height,
+                                                       mean_aggregate=mean_aggregate_stat_anal)
             get_mannwhitneyu_p_value_graph(hyper_imges, tg_v_1, tg_v_2, mannwhitneyu_alternative,
                                            corrected_p_value_method,
                                            mannwhitneyu_scipy_params,
                                            download_path=folder_path + '/' + 'mannwhitneyu' +
                                                          f'/mannwhitneyu_{tg_v_1}_{tg_v_2}.html',
                                            with_png=with_png, png_scale=png_scale,
-                                           png_width=png_width, png_height=png_height)
+                                           png_width=png_width, png_height=png_height,
+                                           mean_aggregate=mean_aggregate_stat_anal)
             get_ttest_p_value_graph(hyper_imges, tg_v_1, tg_v_2, mannwhitneyu_alternative,
                                     corrected_p_value_method,
                                     ttest_scipy_params,
                                     download_path=folder_path + '/' + 'ttest' +
                                                   f'/ttest_{tg_v_1}_{tg_v_2}.html',
                                     with_png=with_png, png_scale=png_scale,
-                                    png_width=png_width, png_height=png_height)
+                                    png_width=png_width, png_height=png_height,
+                                    mean_aggregate=mean_aggregate_stat_anal)
             lst.append((tg_v_1, tg_v_2))

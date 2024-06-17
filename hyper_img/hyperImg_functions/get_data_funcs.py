@@ -64,7 +64,7 @@ def all_tiff_cube_img(path: str) -> list[str]:
 
 def get_list_hyper_img(class_name: type,
                        segmenter: Segmenter,
-                       path: str | None = None, 
+                       path: str | None = None,
                        seq_names: tp.Sequence | None = None,
                        filter: tp.Callable[[str], bool] | None = None,
                        same_samples: tp.Sequence = [],
@@ -222,7 +222,29 @@ def create_table_annotation_df(hyper_imges: tp.Sequence[HyperImg],
     return pd.DataFrame(table_dct)
 
 
-def get_df_graphics_medians_wavelenght(hyper_imges: tp.Sequence[HyperImg]) -> pd.DataFrame:
+def _groupby_id(hyper_imges: tp.Sequence[HyperImg]) -> dict[str, list[HyperImg]]:
+    hyper_dct = defaultdict(list)
+    for img in hyper_imges:
+        hyper_dct[img.object_name].append(img)
+    return hyper_dct
+
+
+def _groupby_id_mean(hyper_imges: tp.Sequence[HyperImg]) -> tp.Sequence[HyperImg]:
+    hyper_dct = _groupby_id(hyper_imges)
+    mean_hyper_imges = list()
+    for img_id in hyper_dct:
+        hyper_sum = hyper_dct[img_id][0]
+        for i, img in enumerate(hyper_dct[img_id]):
+            if i == 0:
+                continue
+            hyper_sum = hyper_sum + img
+        hyper_sum = hyper_sum / len(hyper_dct[img_id])
+        mean_hyper_imges.append(hyper_sum)
+    return mean_hyper_imges
+
+
+def get_df_graphics_medians_wavelenght(hyper_imges: tp.Sequence[HyperImg], 
+                                       mean_aggregate: bool = False) -> pd.DataFrame:
     """
     Create DataFrame for graphics medians versus wavelength.
     Args:
@@ -238,24 +260,30 @@ def get_df_graphics_medians_wavelenght(hyper_imges: tp.Sequence[HyperImg]) -> pd
 
     if len(hyper_imges) == 0:
         raise EmptyHyperImgList
-    
+
     if not issubclass(type(hyper_imges[0]), HyperImg):
         raise NeedHyperImgSubclass
 
-    x_axis: tp.List[int] = list(np.arange(0, hyper_imges[0].medians.shape[0]) * hyper_imges[0].camera_sensitive
-                                + hyper_imges[0].camera_begin_wavelenght)
+    if mean_aggregate:
+        new_hyper_imges = _groupby_id_mean(hyper_imges)
+    else:
+        new_hyper_imges = hyper_imges
+
+    x_axis: tp.List[int] = list(np.arange(0, new_hyper_imges[0].medians.shape[0]) * new_hyper_imges[0].camera_sensitive
+                                + new_hyper_imges[0].camera_begin_wavelenght)
     points: tp.List[tp.Any] = list()
 
-    for sample_number, sample in enumerate(hyper_imges):
+    for sample_number, sample in enumerate(new_hyper_imges):
         for p in zip(x_axis, sample.medians):
             points.append([p[0], p[1], sample_number, sample.target_variable, sample.object_name])
 
     return pd.DataFrame(points, columns=['Wavelength', 'Median',
-                                         'Sample', hyper_imges[0].target_varible_name, 'Object name'])
+                                         'Sample', new_hyper_imges[0].target_varible_name, 'Object name'])
 
 
-def get_df_medians(hyper_imges: tp.Sequence[HyperImg], 
-                   filter_value: str = '') -> pd.DataFrame:
+def get_df_medians(hyper_imges: tp.Sequence[HyperImg],
+                   filter_value: str = '',
+                   mean_aggregate: bool = False) -> pd.DataFrame:
     """
     Create DataFrame of medians.
 
@@ -275,16 +303,22 @@ def get_df_medians(hyper_imges: tp.Sequence[HyperImg],
     
     if not issubclass(type(hyper_imges[0]), HyperImg):
         raise NeedHyperImgSubclass
+    
+    if mean_aggregate:
+        new_hyper_imges = _groupby_id_mean(hyper_imges)
+    else:
+        new_hyper_imges = hyper_imges
 
-    return pd.DataFrame([list(sample.medians) + [sample.target_variable, sample.object_name] for sample in hyper_imges
+    return pd.DataFrame([list(sample.medians) + [sample.target_variable, sample.object_name] for sample in new_hyper_imges
                          if sample.target_variable != filter_value],
-                        columns=list(np.arange(0, hyper_imges[0].medians.shape[0]) * hyper_imges[0].camera_sensitive +
-                                                  hyper_imges[0].camera_begin_wavelenght)
-                                + [hyper_imges[0].target_varible_name, 'Object name'])
+                        columns=list(np.arange(0, new_hyper_imges[0].medians.shape[0]) * new_hyper_imges[0].camera_sensitive +
+                                                  new_hyper_imges[0].camera_begin_wavelenght)
+                                + [new_hyper_imges[0].target_varible_name, 'Object name'])
     
 
 def get_df_pca_and_explained_variance(hyper_imges: tp.Sequence[HyperImg],
-                                      n_components: int = 2) -> tuple[pd.DataFrame, np.ndarray]:
+                                      n_components: int = 2,
+                                      mean_aggregate: bool = False) -> tuple[pd.DataFrame, np.ndarray]:
     """
     Create pd.DataFrame with projection values on n_components main vectors in PCA, and explained variance.
 
@@ -306,24 +340,30 @@ def get_df_pca_and_explained_variance(hyper_imges: tp.Sequence[HyperImg],
     if not issubclass(type(hyper_imges[0]), HyperImg):
         raise NeedHyperImgSubclass
     
+    if mean_aggregate:
+        new_hyper_imges = _groupby_id_mean(hyper_imges)
+    else:
+        new_hyper_imges = hyper_imges
+
     pipe = Pipeline([('scaler', StandardScaler(with_std=False)), 
                      ('pca', PCA(n_components=n_components))])
-    df = get_df_medians(hyper_imges)
-    X = df.drop([hyper_imges[0].target_varible_name, 'Object name'], axis=1)
-    y = df[[hyper_imges[0].target_varible_name]]
+    df = get_df_medians(new_hyper_imges)
+    X = df.drop([new_hyper_imges[0].target_varible_name, 'Object name'], axis=1)
+    y = df[[new_hyper_imges[0].target_varible_name]]
     X = pipe.fit_transform(X)
 
-    new_arr = list(zip(X, y[hyper_imges[0].target_varible_name]))
+    new_arr = list(zip(X, y[new_hyper_imges[0].target_varible_name]))
     lst_of_value = [list(new_arr[i][0][:]) + [new_arr[i][1]] + [df['Object name'][i]] for i, _ in enumerate(new_arr)]
     columns_numbers = [str(i + 1) for i in range(n_components)]
     return pd.DataFrame(lst_of_value,
-                        columns=columns_numbers + [hyper_imges[0].target_varible_name, 'Object name']), \
+                        columns=columns_numbers + [new_hyper_imges[0].target_varible_name, 'Object name']), \
            pipe['pca'].explained_variance_ratio_[:n_components]
 
 
 def get_df_isomap(hyper_imges: tp.Sequence[HyperImg],
 		          n_neighbors: int  = 5,
                   n_components: int = 2,
+                  mean_aggregate: bool = False,
                   **kwargs_sklearn_isomap) -> pd.DataFrame:
     """
     Create pd.DataFrame with projection values on 2 main vectors in ISOMAP
@@ -345,24 +385,30 @@ def get_df_isomap(hyper_imges: tp.Sequence[HyperImg],
 
     if not issubclass(type(hyper_imges[0]), HyperImg):
         raise NeedHyperImgSubclass
-
+    
+    if mean_aggregate:
+        new_hyper_imges = _groupby_id_mean(hyper_imges)
+    else:
+        new_hyper_imges = hyper_imges
+        
     pipe = Pipeline([('scaler', StandardScaler(with_std=False)),
                      ('isomap', Isomap(n_neighbors=n_neighbors, n_components=n_components, **kwargs_sklearn_isomap))])
-    df = get_df_medians(hyper_imges)
-    X = df.drop([hyper_imges[0].target_varible_name, 'Object name'], axis=1)
-    y = df[[hyper_imges[0].target_varible_name]]
+    df = get_df_medians(new_hyper_imges)
+    X = df.drop([new_hyper_imges[0].target_varible_name, 'Object name'], axis=1)
+    y = df[[new_hyper_imges[0].target_varible_name]]
     X = pipe.fit_transform(X)
 
-    new_arr = list(zip(X, y[hyper_imges[0].target_varible_name]))
+    new_arr = list(zip(X, y[new_hyper_imges[0].target_varible_name]))
     lst_of_value = [list(new_arr[i][0][:]) + [new_arr[i][1]] + [df['Object name'][i]] for i, _ in enumerate(new_arr)]
     columns_numbers = [str(i + 1) for i in range(n_components)]
     return pd.DataFrame(lst_of_value,
-                        columns=columns_numbers + [hyper_imges[0].target_varible_name, 'Object name'])
+                        columns=columns_numbers + [new_hyper_imges[0].target_varible_name, 'Object name'])
 
 
 def get_df_umap(hyper_imges: tp.Sequence[HyperImg],
                 n_components: int = 2,
                 n_neighbors: int = 15,
+                mean_aggregate: bool = False,
                 **kwargs_sklearn_umap) -> pd.DataFrame:
     """
     Create pd.DataFrame with projection values on 2 main vectors in UMAP
@@ -385,29 +431,35 @@ def get_df_umap(hyper_imges: tp.Sequence[HyperImg],
     if not issubclass(type(hyper_imges[0]), HyperImg):
         raise NeedHyperImgSubclass
 
-    df = get_df_medians(hyper_imges)
-    X = df.drop([hyper_imges[0].target_varible_name, 'Object name'], axis=1)
-    y = df[[hyper_imges[0].target_varible_name]]
-    y, _ = pd.factorize(y[hyper_imges[0].target_varible_name])
+    if mean_aggregate:
+        new_hyper_imges = _groupby_id_mean(hyper_imges)
+    else:
+        new_hyper_imges = hyper_imges
+    
+    df = get_df_medians(new_hyper_imges)
+    X = df.drop([new_hyper_imges[0].target_varible_name, 'Object name'], axis=1)
+    y = df[[new_hyper_imges[0].target_varible_name]]
+    y, _ = pd.factorize(y[new_hyper_imges[0].target_varible_name])
 
     pipe = make_pipeline(SimpleImputer(strategy='mean'), PowerTransformer())
     X = pipe.fit_transform(X)
     manifold = umap.UMAP(n_components=n_components, n_neighbors=n_neighbors, **kwargs_sklearn_umap).fit(X, y)
     X = manifold.transform(X)
 
-    new_arr = list(zip(X, df[hyper_imges[0].target_varible_name]))
+    new_arr = list(zip(X, df[new_hyper_imges[0].target_varible_name]))
     lst_of_value = [list(new_arr[i][0][:]) + [new_arr[i][1]] + [df['Object name'][i]] for i, _ in enumerate(new_arr)]
     columns_numbers = [str(i + 1) for i in range(n_components)]
     return pd.DataFrame(lst_of_value,
-                        columns=columns_numbers + [hyper_imges[0].target_varible_name, 'Object name'])
+                        columns=columns_numbers + [new_hyper_imges[0].target_varible_name, 'Object name'])
 
 
 def get_mean_diff_and_confident_interval_df(hyper_imges: tp.Sequence[HyperImg],
                                                target_variable_1: str,
                                                target_variable_2: str,
-                                               level: float = 0.95) -> tuple[pd.DataFrame,
-                                                                             pd.DataFrame,
-                                                                             pd.DataFrame]:
+                                               level: float = 0.95,
+                                               mean_aggregate: bool = False) -> tuple[pd.DataFrame,
+                                                                               pd.DataFrame,
+                                                                               pd.DataFrame]:
     """
     Creates pd.DataFrames with sample mean difference, left bound, and right bound 95% confidence interval.
 
@@ -431,11 +483,16 @@ def get_mean_diff_and_confident_interval_df(hyper_imges: tp.Sequence[HyperImg],
 
     if not issubclass(type(hyper_imges[0]), HyperImg):
         raise NeedHyperImgSubclass
+    
+    if mean_aggregate:
+        new_hyper_imges = _groupby_id_mean(hyper_imges)
+    else:
+        new_hyper_imges = hyper_imges
 
     alpha = scipy.stats.norm.ppf((1 - level)/2 + level)
 
-    hyper_imgs_1 = [img for img in hyper_imges if img.target_variable == target_variable_1]
-    hyper_imgs_2 = [img for img in hyper_imges if img.target_variable == target_variable_2]
+    hyper_imgs_1 = [img for img in new_hyper_imges if img.target_variable == target_variable_1]
+    hyper_imgs_2 = [img for img in new_hyper_imges if img.target_variable == target_variable_2]
     df_medians_wavelen_1 = get_df_graphics_medians_wavelenght(hyper_imgs_1).\
                                             sort_values('Wavelength').drop('Sample', axis=1)
     df_medians_wavelen_2 = get_df_graphics_medians_wavelenght(hyper_imgs_2).\
@@ -464,7 +521,8 @@ def get_mannwhitneyu_p_value_df(hyper_imges: tp.Sequence[HyperImg],
                                 target_variable_2: str,
                                 alternative: str = 'two-sided',
                                 corrected_p_value_method: str | None = 'holm',
-                                params_scipy: dict[str, tp.Any] | None = None) -> pd.DataFrame:
+                                params_scipy: dict[str, tp.Any] | None = None,
+                                mean_aggregate: bool = False) -> pd.DataFrame:
     """
     Perform the Mann-Whitney U rank test on two groups.
     Args:
@@ -484,23 +542,28 @@ def get_mannwhitneyu_p_value_df(hyper_imges: tp.Sequence[HyperImg],
     if not issubclass(type(hyper_imges[0]), HyperImg):
         raise NeedHyperImgSubclass
 
+    if mean_aggregate:
+        new_hyper_imges = _groupby_id_mean(hyper_imges)
+    else:
+        new_hyper_imges = hyper_imges
+
     if params_scipy is None:
         params_scipy = dict()
 
-    arr_hyper_1 = np.hstack([img.get_medians().reshape(len(hyper_imges[0].medians), 1) for img in hyper_imges
+    arr_hyper_1 = np.hstack([img.get_medians().reshape(len(new_hyper_imges[0].medians), 1) for img in new_hyper_imges
                              if img.target_variable == target_variable_1])
-    arr_hyper_2 = np.hstack([img.get_medians().reshape(len(hyper_imges[0].medians), 1) for img in hyper_imges
+    arr_hyper_2 = np.hstack([img.get_medians().reshape(len(new_hyper_imges[0].medians), 1) for img in new_hyper_imges
                              if img.target_variable == target_variable_2])
 
-    assert len(arr_hyper_1) == len(arr_hyper_2) == len(hyper_imges[0].medians), len(arr_hyper_1)
+    assert len(arr_hyper_1) == len(arr_hyper_2) == len(new_hyper_imges[0].medians), len(arr_hyper_1)
 
     p_value = []
     wavelen = []
-    for i in range(len(hyper_imges[0].medians)):
+    for i in range(len(new_hyper_imges[0].medians)):
         arr_hyper_1_i = arr_hyper_1[i]
         arr_hyper_2_i = arr_hyper_2[i]
 
-        wavelen.append(i * hyper_imges[0].camera_sensitive + hyper_imges[0].camera_begin_wavelenght)
+        wavelen.append(i * new_hyper_imges[0].camera_sensitive + new_hyper_imges[0].camera_begin_wavelenght)
         p_value.append(mannwhitneyu(arr_hyper_1_i, arr_hyper_2_i, alternative=alternative, **params_scipy)[1])
     
     if corrected_p_value_method is not None:
@@ -515,7 +578,8 @@ def get_ttest_p_value_df(hyper_imges: tp.Sequence[HyperImg],
                         target_variable_2: str,
                         alternative: str = 'two-sided',
                         corrected_p_value_method: str | None = 'holm',
-                        params_scipy: dict[str, tp.Any] | None = None) -> pd.DataFrame:
+                        params_scipy: dict[str, tp.Any] | None = None,
+                        mean_aggregate: bool = False) -> pd.DataFrame:
     """
     Perform the independent t-test test on two groups.
     Args:
@@ -534,24 +598,29 @@ def get_ttest_p_value_df(hyper_imges: tp.Sequence[HyperImg],
 
     if not issubclass(type(hyper_imges[0]), HyperImg):
         raise NeedHyperImgSubclass
+    
+    if mean_aggregate:
+        new_hyper_imges = _groupby_id_mean(hyper_imges)
+    else:
+        new_hyper_imges = hyper_imges
 
     if params_scipy is None:
         params_scipy = dict()
 
-    arr_hyper_1 = np.hstack([img.get_medians().reshape(len(hyper_imges[0].medians), 1) for img in hyper_imges
+    arr_hyper_1 = np.hstack([img.get_medians().reshape(len(new_hyper_imges[0].medians), 1) for img in new_hyper_imges
                              if img.target_variable == target_variable_1])
-    arr_hyper_2 = np.hstack([img.get_medians().reshape(len(hyper_imges[0].medians), 1) for img in hyper_imges
+    arr_hyper_2 = np.hstack([img.get_medians().reshape(len(new_hyper_imges[0].medians), 1) for img in new_hyper_imges
                              if img.target_variable == target_variable_2])
 
-    assert len(arr_hyper_1) == len(arr_hyper_2) == len(hyper_imges[0].medians), len(arr_hyper_1)
+    assert len(arr_hyper_1) == len(arr_hyper_2) == len(new_hyper_imges[0].medians), len(arr_hyper_1)
 
     p_value = []
     wavelen = []
-    for i in range(len(hyper_imges[0].medians)):
+    for i in range(len(new_hyper_imges[0].medians)):
         arr_hyper_1_i = arr_hyper_1[i]
         arr_hyper_2_i = arr_hyper_2[i]
 
-        wavelen.append(i * hyper_imges[0].camera_sensitive + hyper_imges[0].camera_begin_wavelenght)
+        wavelen.append(i * new_hyper_imges[0].camera_sensitive + new_hyper_imges[0].camera_begin_wavelenght)
         p_value.append(ttest_ind(arr_hyper_1_i, arr_hyper_2_i, alternative=alternative, **params_scipy)[1])
 
     if corrected_p_value_method is not None:
@@ -565,7 +634,8 @@ def get_chi2_p_value_df(hyper_imges: tp.Sequence[HyperImg],
                         target_variable_1: str,
                         target_variable_2: str,
                         corrected_p_value_method: str | None = 'holm',
-                        number_bins: int = 5) -> pd.DataFrame:
+                        number_bins: int = 5,
+                        mean_aggregate: bool = False) -> pd.DataFrame:
 
     """
     Chi-square test to test the hypothesis about the coincidence
@@ -591,16 +661,21 @@ def get_chi2_p_value_df(hyper_imges: tp.Sequence[HyperImg],
     if not issubclass(type(hyper_imges[0]), HyperImg):
         raise NeedHyperImgSubclass
 
-    arr_hyper_1 = np.hstack([img.get_medians().reshape(len(hyper_imges[0].medians), 1) for img in hyper_imges
+    if mean_aggregate:
+        new_hyper_imges = _groupby_id_mean(hyper_imges)
+    else:
+        new_hyper_imges = hyper_imges
+    
+    arr_hyper_1 = np.hstack([img.get_medians().reshape(len(new_hyper_imges[0].medians), 1) for img in new_hyper_imges
                              if img.target_variable == target_variable_1])
-    arr_hyper_2 = np.hstack([img.get_medians().reshape(len(hyper_imges[0].medians), 1) for img in hyper_imges
+    arr_hyper_2 = np.hstack([img.get_medians().reshape(len(new_hyper_imges[0].medians), 1) for img in new_hyper_imges
                              if img.target_variable == target_variable_2])
 
-    assert len(arr_hyper_1) == len(arr_hyper_2) == len(hyper_imges[0].medians), len(arr_hyper_1)
+    assert len(arr_hyper_1) == len(arr_hyper_2) == len(new_hyper_imges[0].medians), len(arr_hyper_1)
 
     p_value = []
     wavelen = []
-    for i in range(len(hyper_imges[0].medians)):
+    for i in range(len(new_hyper_imges[0].medians)):
         arr_hyper_1_i = arr_hyper_1[i]
         arr_hyper_2_i = arr_hyper_2[i]
 
@@ -621,11 +696,11 @@ def get_chi2_p_value_df(hyper_imges: tp.Sequence[HyperImg],
         with warnings.catch_warnings():
             warnings.filterwarnings('error')
             try:
-                wavelen.append(i * hyper_imges[0].camera_sensitive + hyper_imges[0].camera_begin_wavelenght)
+                wavelen.append(i * new_hyper_imges[0].camera_sensitive + new_hyper_imges[0].camera_begin_wavelenght)
                 p_value.append(chisquare(prob_2, f_exp=prob_1)[1])
             except RuntimeWarning:
                 try:
-                    wavelen.append(i * hyper_imges[0].camera_sensitive + hyper_imges[0].camera_begin_wavelenght)
+                    wavelen.append(i * new_hyper_imges[0].camera_sensitive + new_hyper_imges[0].camera_begin_wavelenght)
                     p_value.append(chisquare(prob_1, f_exp=prob_2)[1])
                 except RuntimeWarning:
                     raise RuntimeWarning('please, decrease number of bins')
@@ -646,6 +721,7 @@ def get_df_em_algorithm_clustering(hyper_imges: tp.Sequence[HyperImg],
                                    init_params: str = 'random',
                                    n_neighbors_isomap: int = 5,
                                    n_neighbors_umap: int = 15,
+                                   mean_aggregate: bool = False,
                                    **kwargs_sklearn_gaussian_mixture) -> tuple[pd.DataFrame,
                                                                                pd.DataFrame]:
     """
@@ -675,7 +751,12 @@ def get_df_em_algorithm_clustering(hyper_imges: tp.Sequence[HyperImg],
     if not issubclass(type(hyper_imges[0]), HyperImg):
         raise NeedHyperImgSubclass
 
-    filtred_hyper_imges = [img for img in hyper_imges if filter(img)]
+    if mean_aggregate:
+        new_hyper_imges = _groupby_id_mean(hyper_imges)
+    else:
+        new_hyper_imges = hyper_imges
+    
+    filtred_hyper_imges = [img for img in new_hyper_imges if filter(img)]
 
     if downscaling_method == 'PCA':
         df, _ = get_df_pca_and_explained_variance(filtred_hyper_imges, n_components=dim_clusterization)
@@ -686,8 +767,8 @@ def get_df_em_algorithm_clustering(hyper_imges: tp.Sequence[HyperImg],
     else:
         raise ThisMethodDoesNotExist('Please choose "PCA", "UMAP" or "ISOMAP" ')
 
-    X = df.drop([hyper_imges[0].target_varible_name, 'Object name'], axis=1)
-    y = df[hyper_imges[0].target_varible_name]
+    X = df.drop([new_hyper_imges[0].target_varible_name, 'Object name'], axis=1)
+    y = df[new_hyper_imges[0].target_varible_name]
 
     if n_clusters is None:
         n_clusters = len(y.unique())
@@ -698,7 +779,7 @@ def get_df_em_algorithm_clustering(hyper_imges: tp.Sequence[HyperImg],
 
     cluster_stat = []
     for i in range(n_clusters):
-        dct = dict(Counter(df[df['Clusters'] == i][hyper_imges[0].target_varible_name]))
+        dct = dict(Counter(df[df['Clusters'] == i][new_hyper_imges[0].target_varible_name]))
         max_values = np.max(list(dct.values()))
         max_class = [k for k in dct.keys() if dct[k] == max_values][0]
         accuracy = max_values / len(df[df['Clusters'] == i])

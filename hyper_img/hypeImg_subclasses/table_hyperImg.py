@@ -15,7 +15,7 @@ class TableHyperImg(HyperImg):
     """
     Subclass of HyperImg for work with table annotations of hyperspectral images.
     """
-    
+
     def __init__(self, path: str, table: pd.DataFrame,
                  segmenter: Segmenter,
                  savgol_par: tuple[int, int] = (9, 3),
@@ -40,7 +40,7 @@ class TableHyperImg(HyperImg):
             black_calibr_name_column (str): column title with black image for calibration name.
             white_calibr_name_column (str): column title with white image for calibration name.
             with_median (bool): if true, then calculate medians for each channel. Defaults True.
-        """     
+        """
         self.table = table
         self.name_column = name_column
         self.plant_column = plant_number_column
@@ -48,7 +48,7 @@ class TableHyperImg(HyperImg):
         self.white_calibr_name_column = white_calibr_name_column
         self.id_column = id_name_column
         super().__init__(path, segmenter, savgol_par, target_varible_name, with_median=with_median)
-        
+
     def _get_image(self) -> np.ndarray:
         if len(self.table[self.table[self.name_column] == self.path.split('/')[-1]]) == 0:
             raise NameError('Error in path')
@@ -65,7 +65,7 @@ class TableHyperImg(HyperImg):
             new_img = img - self.bl_img
         else:
             self.bl_img = np.zeros(img.shape, dtype=np.float64)
-            new_img = img    
+            new_img = img
         if self.table[self.table[self.name_column] == self.path.split('/')[-1]
                       ][self.white_calibr_name_column].iloc[0]:
             self.white_calibration_img_name = self.table[self.table[self.name_column] == self.path.split('/')[-1]
@@ -81,5 +81,4 @@ class TableHyperImg(HyperImg):
 
     def _get_target_varible(self) -> str:
         return self.table[self.table[self.name_column] == self.path.split('/')[-1]
-                          ][self.target_varible_name].iloc[0]
-    
+                          ][self.target_varible_name].iloc[0]   
