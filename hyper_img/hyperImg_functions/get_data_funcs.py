@@ -62,6 +62,18 @@ def all_tiff_cube_img(path: str) -> list[str]:
     return img_names
 
 
+def sort_hyper(hyper_imgs):
+    tg_variable_dct = defaultdict(list)
+    for img in hyper_imgs:
+        tg_variable_dct[img.target_variable].append(img)
+    for k in tg_variable_dct:
+        tg_variable_dct[k] = sorted(tg_variable_dct[k], key=lambda x: x.object_name)
+    hyper_lst = []
+    for k in tg_variable_dct:
+        hyper_lst.extend(tg_variable_dct[k])
+    return hyper_lst
+
+
 def get_list_hyper_img(class_name: type,
                        segmenter: Segmenter,
                        path: str | None = None,
@@ -129,7 +141,7 @@ def get_list_hyper_img(class_name: type,
         for name in norm_seq_tg_name:
             if hyper_img.target_variable == name:
                 norm_dct[name].append(hyper_img.medians)
-    
+
     if len(lst) == 0:
         raise EmptyHyperImgList
 
@@ -149,7 +161,7 @@ def get_list_hyper_img(class_name: type,
                 if hyper_img.target_variable == name:
                     norm_dct[name].append(hyper_img.medians)
 
-    return lst
+    return sort_hyper(lst)
 
 
 def get_google_table_sheets(sheet_url: str,
@@ -249,6 +261,7 @@ def get_df_graphics_medians_wavelenght(hyper_imges: tp.Sequence[HyperImg],
     Create DataFrame for graphics medians versus wavelength.
     Args:
         hyper_imges (tp.Sequence[HyperImg]): the sequence of hyperspectral images.
+        mean_aggregate (bool): whether to average samples by object_name. Defaults to False.
 
     Raises:
         NeedHyperImgSubclass: the image class must be a subclass of HyperImg .
@@ -290,7 +303,7 @@ def get_df_medians(hyper_imges: tp.Sequence[HyperImg],
     Args:
         hyper_imges (tp.Sequence[HyperImg]): the sequence of hyperspectral images.
         filter_value (str, optional): if target varible = filter_value, that this sample is skipped. Defaults to ''.
-
+        mean_aggregate (bool): whether to average samples by object_name. Defaults to False.
     Raises:
         NeedHyperImgSubclass: the image class must be a subclass of HyperImg .
         EmptyHyperImgList: the sequence of images was empty.
@@ -314,7 +327,50 @@ def get_df_medians(hyper_imges: tp.Sequence[HyperImg],
                         columns=list(np.arange(0, new_hyper_imges[0].medians.shape[0]) * new_hyper_imges[0].camera_sensitive +
                                                   new_hyper_imges[0].camera_begin_wavelenght)
                                 + [new_hyper_imges[0].target_varible_name, 'Object name'])
-    
+
+
+def get_boxplot_values(hyper_imges: tp.Sequence[HyperImg],
+                       channels: tp.Sequence[int] | None = None,
+                       mean_aggregate: bool = False) -> dict[int]:
+    """
+    Create data for boxplots.
+
+    Args:
+        hyper_imges (tp.Sequence[HyperImg]): the sequence of hyperspectral images.
+        channels (tp.Sequence[int] | None, optional):channels used to build boxplots charts. Defaults to None.
+        mean_aggregate (bool): whether to average samples by object_name. Defaults to False.
+    Raises:
+        NeedHyperImgSubclass: the image class must be a subclass of HyperImg .
+        EmptyHyperImgList: the sequence of images was empty.
+
+    Returns:
+        dict[int]: pixel value dictionary.
+    """
+    if len(hyper_imges) == 0:
+        raise EmptyHyperImgList
+
+    if not issubclass(type(hyper_imges[0]), HyperImg):
+        raise NeedHyperImgSubclass
+
+    if mean_aggregate:
+        new_hyper_imges = _groupby_id_mean(hyper_imges)
+    else:
+        new_hyper_imges = hyper_imges
+
+    new_hyper_imges = sort_hyper(new_hyper_imges)
+
+    all_channels = channels if channels is not None else range(len(hyper_imges[0].medians))
+
+    values = defaultdict(dict)
+    target_variable_names = set()
+    for j, img in enumerate(new_hyper_imges):
+        target_variable_names.add(img.target_variable)
+        all_values = img.get_all_values()
+        for i in all_channels:
+            values[i][(img.object_name, img.target_variable, j)] = all_values[i]
+
+    return dict(values)
+
 
 def get_df_pca_and_explained_variance(hyper_imges: tp.Sequence[HyperImg],
                                       n_components: int = 2,
@@ -325,6 +381,7 @@ def get_df_pca_and_explained_variance(hyper_imges: tp.Sequence[HyperImg],
     Args:
         hyper_imges (tp.Sequence[HyperImg]): the sequence of hyperspectral images.
         n_components (int): space dimension after downscaling.
+        mean_aggregate (bool): whether to average samples by object_name. Defaults to False.
     Raises:
         NeedHyperImgSubclass: the image class must be a subclass of HyperImg .
         EmptyHyperImgList: the sequence of images was empty.
@@ -372,6 +429,7 @@ def get_df_isomap(hyper_imges: tp.Sequence[HyperImg],
     	n_neighbors (int): number of neighbors to consider for each point. Default 5.
         hyper_imges (tp.Sequence[HyperImg]): the sequence of hyperspectral images.
         n_components (int): space dimension after downscaling.
+        mean_aggregate (bool): whether to average samples by object_name. Defaults to False.
     Raises:
         NeedHyperImgSubclass: the image class must be a subclass of HyperImg .
         EmptyHyperImgList: the sequence of images was empty.
@@ -417,6 +475,7 @@ def get_df_umap(hyper_imges: tp.Sequence[HyperImg],
         hyper_imges (tp.Sequence[HyperImg]): the sequence of hyperspectral images.
         n_neighbors (int | None): number of neighbors to consider for each point. Default 15.
         n_components (int): space dimension after downscaling.
+        mean_aggregate (bool): whether to average samples by object_name. Defaults to False.
     Raises:
         NeedHyperImgSubclass: the image class must be a subclass of HyperImg .
         EmptyHyperImgList: the sequence of images was empty.
@@ -468,6 +527,7 @@ def get_mean_diff_and_confident_interval_df(hyper_imges: tp.Sequence[HyperImg],
          target_variable_1 (str): first target vaiable name.
          target_variable_2 (str): second target vaiable name.
          level (float): level for confident interval. Default 0.95 (95%).
+         mean_aggregate (bool): whether to average samples by object_name. Defaults to False.
     Raises:
         NeedHyperImgSubclass: the image class must be a subclass of HyperImg .
         EmptyHyperImgList: the sequence of images was empty.
@@ -533,6 +593,7 @@ def get_mannwhitneyu_p_value_df(hyper_imges: tp.Sequence[HyperImg],
         params_scipy (dict[str, tp.Any] | None): dict with params for scipy.stats.mannwhitneyu.
                                                 Default None (no extra params).
         corrected_p_value_method (str | None): method from statsmodel multipletests. Default 'holm'.
+        mean_aggregate (bool): whether to average samples by object_name. Defaults to False.
     Returns:
         pd.DataFrame: table with p-values.
     """
@@ -587,9 +648,10 @@ def get_ttest_p_value_df(hyper_imges: tp.Sequence[HyperImg],
         target_variable_1 (str): first target vaiable name.
         target_variable_2 (str): second target vaiable name.
         alternative (str): defines the alternative hypothesis ('two-sided', 'less', 'greater'). Default is ‘two-sided’
-        params_scipy (dict[str, tp.Any] | None): dict with params for scipy.stats.mannwhitneyu.
+        params_scipy (dict[str, tp.Any] | None): dict with params for scipy.stats.ttest_ind.
                                                 Default None (no extra params).
         corrected_p_value_method (str | None): method from statsmodel multipletests. Default 'holm'.
+        mean_aggregate (bool): whether to average samples by object_name. Defaults to False.
     Returns:
         pd.DataFrame: table with p-values.
     """
@@ -647,7 +709,7 @@ def get_chi2_p_value_df(hyper_imges: tp.Sequence[HyperImg],
          target_variable_2 (str): second target vaiable name.
          number_bins (int): number of bins. Defaults 5.
          corrected_p_value_method (str | None): method from statsmodel multipletests. Default 'holm'.
-
+         mean_aggregate (bool): whether to average samples by object_name. Defaults to False.
     Raises:
         NeedHyperImgSubclass: the image class must be a subclass of HyperImg .
         EmptyHyperImgList: the sequence of images was empty.
@@ -739,6 +801,7 @@ def get_df_em_algorithm_clustering(hyper_imges: tp.Sequence[HyperImg],
                      (‘kmeans’, ‘k-means++’, ‘random’, ‘random_from_data’). Defaults 'random'.
         n_neighbors_isomap (int): number of neighbors to consider for each point, if using isomap. Default 5.
         n_neighbors_umap (int): number of neighbors to consider for each point, if using umap. Default 15.
+        mean_aggregate (bool): whether to average samples by object_name. Defaults to False.
         **kwargs_sklearn_gaussian_mixture: other params for sklearn.mixture.GaussianMixture.
 
     Returns:
