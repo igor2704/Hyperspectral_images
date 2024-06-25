@@ -14,18 +14,20 @@ class PlainCv2Segmenter(Segmenter):
         self.threshold = threshold
 
     @staticmethod
-    def _get_bgr(hyper_image: np.ndarray):
+    def _get_bgr(hyper_image: np.ndarray, step: int = 4, begin_wave_len: int = 450):
         """
         Args:
             hyper_image (np.ndarray): multichannel hyperspectral image.
+            step (int, optional): step (camera settings). Defaults to 4.
+            begin_wave_len (int, optional): initial wavelength (camera settings). Defaults to 450.
         Returns:
             np.ndarray: bgr image representation.
         """
         # To accurately display colors, you need to choose constants
 
-        im_r = hyper_image[:, :, PlainCv2Segmenter._wave_len(630)]
-        im_g = hyper_image[:, :, PlainCv2Segmenter._wave_len(510)]
-        im_b = hyper_image[:, :, PlainCv2Segmenter._wave_len(450)]
+        im_r = hyper_image[:, :, PlainCv2Segmenter._wave_len(630, step, begin_wave_len)]
+        im_g = hyper_image[:, :, PlainCv2Segmenter._wave_len(510, step, begin_wave_len)]
+        im_b = hyper_image[:, :, PlainCv2Segmenter._wave_len(450, step, begin_wave_len)]
 
         im_r = (im_r / im_r.max()) * 255
         im_g = (im_g / im_g.max()) * 255
@@ -55,8 +57,9 @@ class PlainCv2Segmenter(Segmenter):
         """
         return int((x - begin_wave_len) // step)
 
-    def get_mask(self, hyper_image: np.ndarray) -> np.ndarray:
-        bgr = PlainCv2Segmenter._get_bgr(hyper_image)
+    def get_mask(self, hyper_image: np.ndarray,
+                 step: int = 4, begin_wave_len: int = 450) -> np.ndarray:
+        bgr = PlainCv2Segmenter._get_bgr(hyper_image, step, begin_wave_len)
         img_black = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
         _, im_thr = cv2.threshold(img_black, self.threshold, 255, cv2.THRESH_BINARY)
         return im_thr.clip(0, 1)

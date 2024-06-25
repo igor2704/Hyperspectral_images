@@ -726,16 +726,16 @@ def create_folder_with_all_graphs(hyper_imges: tp.Sequence[HyperImg],
         mean_aggregate_stat_anal (bool): whether to average samples by object_name for statistical analysis. Defaults to False.
         fig_show (bool): is it necessary to show graphs. Defaults to False.
     """
-    get_boxplot_graphs(hyper_imges=hyper_imges, color=color,
-                       channels=boxplots_channels,
-                       download_path_dir=os.path.join(folder_path, 'boxplots'),
-                       with_png=with_png,
-                       png_scale=png_scale,
-                       png_width=png_width,
-                       png_height=png_height,
-                       mean_aggregate=mean_aggregate_visualization,
-                       fig_show=fig_show)
     os.mkdir(folder_path)
+    get_boxplot_graphs(hyper_imges=hyper_imges, color=color,
+                           channels=boxplots_channels,
+                           download_path_dir=os.path.join(folder_path, 'boxplots'),
+                           with_png=with_png,
+                           png_scale=png_scale,
+                           png_width=png_width,
+                           png_height=png_height,
+                           mean_aggregate=mean_aggregate_visualization,
+                           fig_show=fig_show)
     get_medians_wavelenght_graph(hyper_imges=hyper_imges, color=color,
                                  download_path=folder_path + '/medians_wavelen.html',
                                  with_png=with_png, png_scale=png_scale,

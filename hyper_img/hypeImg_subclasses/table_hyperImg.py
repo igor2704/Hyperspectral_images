@@ -25,7 +25,8 @@ class TableHyperImg(HyperImg):
                  white_calibr_name_column: str = 'White calibration data',
                  plant_number_column: str = 'PlantNumber',
                  id_name_column: str = 'ID партии',
-                 with_median: bool = True) -> None:
+                 with_median: bool = True,
+                 column_for_marking: str = 'Marking') -> None:
         """
         Args:
             path (str): images path.
@@ -40,8 +41,21 @@ class TableHyperImg(HyperImg):
             black_calibr_name_column (str): column title with black image for calibration name.
             white_calibr_name_column (str): column title with white image for calibration name.
             with_median (bool): if true, then calculate medians for each channel. Defaults True.
+            column_for_marking (str): if not '', mark the row in the table after reading. Defaults 'Marking'.
         """
-        self.table = table
+        if len(table[table[name_column] == path.split('/')[-1]]) == 0:
+            raise NameError('Error in path')
+        if column_for_marking != '' and column_for_marking not in table.columns:
+            table[column_for_marking] = len(table[name_column]) * [0]
+        if column_for_marking == '':
+            self.row = self.table[self.table[self.name_column] == self.path.split('/')[-1]].iloc[0]
+        else:
+            self.row = self.table[(self.table[self.name_column] == self.path.split('/')[-1]) &
+                                  (table[column_for_marking] == 0)].iloc[0]
+            index = self.row.index
+            table.loc[index, column_for_marking] = 1
+        if len(table) == len(table[table[column_for_marking] == 1]):
+            table = table.drop(columns=[column_for_marking])
         self.name_column = name_column
         self.plant_column = plant_number_column
         self.black_calibr_name_column = black_calibr_name_column
@@ -50,26 +64,19 @@ class TableHyperImg(HyperImg):
         super().__init__(path, segmenter, savgol_par, target_varible_name, with_median=with_median)
 
     def _get_image(self) -> np.ndarray:
-        if len(self.table[self.table[self.name_column] == self.path.split('/')[-1]]) == 0:
-            raise NameError('Error in path')
         dir_name: str = '/'.join(self.path.split('/')[:-1]) + '/'
         self.dir_name = dir_name
         img = tiff.imread(self.path).astype(np.float64)
-        self.object_name = self.table[self.table[self.name_column] == self.path.split('/')[-1]
-                                      ][self.plant_column].iloc[0]
-        if self.table[self.table[self.name_column] == self.path.split('/')[-1]
-                      ][self.black_calibr_name_column].iloc[0]:
-            self.black_calibration_img_name = self.table[self.table[self.name_column] == self.path.split('/')[-1]
-                                                         ][self.black_calibr_name_column].iloc[0]
+        self.object_name = self.row[self.plant_column]
+        if self.row[self.black_calibr_name_column]:
+            self.black_calibration_img_name = self.row[self.black_calibr_name_column]
             self.bl_img = tiff.imread(dir_name + self.black_calibration_img_name).astype(np.float64)
             new_img = img - self.bl_img
         else:
             self.bl_img = np.zeros(img.shape, dtype=np.float64)
             new_img = img
-        if self.table[self.table[self.name_column] == self.path.split('/')[-1]
-                      ][self.white_calibr_name_column].iloc[0]:
-            self.white_calibration_img_name = self.table[self.table[self.name_column] == self.path.split('/')[-1]
-                                                         ][self.white_calibr_name_column].iloc[0]
+        if self.row[self.white_calibr_name_column]:
+            self.white_calibration_img_name = self.row[self.white_calibr_name_column]
             self.wh_img = tiff.imread(dir_name + self.white_calibration_img_name).astype(np.float64)
             try:
                 new_img = new_img/(self.wh_img - self.bl_img)
@@ -80,5 +87,4 @@ class TableHyperImg(HyperImg):
         return new_img
 
     def _get_target_varible(self) -> str:
-        return self.table[self.table[self.name_column] == self.path.split('/')[-1]
-                          ][self.target_varible_name].iloc[0]   
+        return self.row[self.target_varible_name]

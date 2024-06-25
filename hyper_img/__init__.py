@@ -19,6 +19,7 @@ from hyper_img.hyperImg_functions.useful_funcs import change_target_variable_nam
 
 from hyper_img.hyperImg_segmenter.segmenter import Segmenter
 from hyper_img.hyperImg_segmenter.segmenter_subclasses.plain_cv2_segmenter import PlainCv2Segmenter
+from hyper_img.hyperImg_segmenter.segmenter_subclasses.cv2_circle_segmenter import CircleCv2Segmenter
 
 
 __all__ = ['HyperImg', 'get_list_hyper_img', 'get_df_graphics_medians_wavelenght',
@@ -30,5 +31,5 @@ __all__ = ['HyperImg', 'get_list_hyper_img', 'get_df_graphics_medians_wavelenght
            'get_table_res_and_confusion_matrix', 'get_df_isomap', 'get_2_isomap_graph',
            'get_em_algorithm_clustering_graph', 'get_df_umap', 'get_df_em_algorithm_clustering',
            'create_folder_with_all_graphs', 'change_target_variable_names', 'get_count_group',
-           'get_mannwhitneyu_p_value_df', 'get_mannwhitneyu_p_value_graph', 'Segmenter',
+           'get_mannwhitneyu_p_value_df', 'get_mannwhitneyu_p_value_graph', 'Segmenter', 'CircleCv2Segmenter'
            'PlainCv2Segmenter', 'rename']
