@@ -48,11 +48,15 @@ class TableHyperImg(HyperImg):
         if column_for_marking != '' and column_for_marking not in table.columns:
             table[column_for_marking] = len(table[name_column]) * [0]
         if column_for_marking == '':
-            self.row = self.table[self.table[self.name_column] == self.path.split('/')[-1]].iloc[0]
+            self.row = table[table[name_column] == path.split('/')[-1]].iloc[0]
         else:
-            self.row = self.table[(self.table[self.name_column] == self.path.split('/')[-1]) &
-                                  (table[column_for_marking] == 0)].iloc[0]
-            index = self.row.index
+            try:
+                self.row = table[(table[name_column] == path.split('/')[-1]) &
+                                    (table[column_for_marking] == 0)].iloc[0]
+            except IndexError:
+                raise IndexError(f'try delete column: "{column_for_marking}" in table')
+            index = np.arange(len(table))[(table[name_column] == path.split('/')[-1]) &
+                                  (table[column_for_marking] == 0)][0]
             table.loc[index, column_for_marking] = 1
         if len(table) == len(table[table[column_for_marking] == 1]):
             table = table.drop(columns=[column_for_marking])
