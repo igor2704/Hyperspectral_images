@@ -109,9 +109,9 @@ def get_boxplot_graphs(hyper_imges: tp.Sequence[HyperImg],
         os.mkdir(download_path_dir)
 
     for ch in all_channels:
-        trace_list = [go.Box(visible=True, y=values[0][k], name=k[0] + f'  id: {k[2]}',
+        trace_list = [go.Box(visible=True, y=values[ch][k], name=k[0] + f'  id: {k[2]}',
                         line=dict(color=colors[k[1]]), text=k[1])
-                      for k in values[0]]
+                      for k in values[ch]]
 
         fig = go.Figure(data=trace_list)
         if fig_show:
