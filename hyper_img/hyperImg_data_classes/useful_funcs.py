@@ -3,6 +3,8 @@ from hyper_img.hyperImg import HyperImg
 import numpy as np
 import pandas as pd
 
+import json
+
 from collections import Counter
 
 import typing as tp
@@ -64,3 +66,12 @@ def rename(hyper_imges: tp.Sequence[HyperImg],
             new_hyper_imges.append(img)
             new_hyper_imges[-1].object_name = object_names[i]
         return new_hyper_imges
+
+
+def write_json_with_all_values(hyper_imges: tp.Sequence[HyperImg],
+                               json_path: str) -> None:
+    dct = dict()
+    for i, img in enumerate(hyper_imges):
+        dct[img.object_name + f'(id_{i})'] = img.get_all_values()
+    with open(json_path, 'w') as f:
+        json.dump(dct, f)

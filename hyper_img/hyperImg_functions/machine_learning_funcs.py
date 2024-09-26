@@ -1,6 +1,4 @@
-from hyper_img.hyperImg import HyperImg
-from hyper_img.hyperImg_functions.get_data_funcs import get_df_medians, get_df_pca_and_explained_variance, \
-                                                        get_df_umap, get_df_isomap
+from hyper_img.hyperImg_data_classes.data import HyperData
 
 import typing as tp
 
@@ -174,9 +172,9 @@ def get_binary_metrics(models: tp.Sequence[sklearn.base.BaseEstimator],
                         columns=['model', 'accuracy', 'f1', 'precision', 'recall'])
 
 
-def get_table_res_and_confusion_matrix(hyper_imges: tp.Sequence[HyperImg],
+def get_table_res_and_confusion_matrix(data: HyperData,
                                        test_size: float | None = 0.15,
-                                       test_hyper_images: tp.Sequence[HyperImg] | None = None,
+                                       test_data: HyperData | None = None,
                                        train_X: pd.DataFrame | None = None,
                                        test_X: pd.DataFrame | None = None,
                                        train_y: pd.DataFrame | None = None,
@@ -204,7 +202,7 @@ def get_table_res_and_confusion_matrix(hyper_imges: tp.Sequence[HyperImg],
         test_size (float): test sample percentage. Default 0.15.
         shuffle_test (bool): shuffle test. Default True.
         cv (int): number of cross validation folds. Default 4.
-        filter (tp.Callable): filter function.
+
         downscaling_method (str | None ): downscaling method (None (no downscaling), 'PCA', 'UMAP', 'ISOMAP').
                                           Default None.
         n_components (int | None): space dimension after downscaling.
@@ -227,17 +225,12 @@ def get_table_res_and_confusion_matrix(hyper_imges: tp.Sequence[HyperImg],
         dict[str, pd.DataFrame]: tables with results.
         dict[str, pd.DataFrame]: confusion matrixes.
     """
-    if len(hyper_imges) == 0:
-        raise EmptyHyperImgList
 
-    if not issubclass(type(hyper_imges[0]), HyperImg):
-        raise NeedHyperImgSubclass
+    if test_data is None and test_size is None:
+        raise NeedTest('test_data or test_size need to be is not None')
 
-    if test_hyper_images is None and test_size is None:
-        raise NeedTest('test_hyper_images or test_size need to be is not None')
-
-    if test_hyper_images is not None and test_size is not None:
-        raise NeedTest('test_hyper_images or test_size need to be is None')
+    if test_data is not None and test_size is not None:
+        raise NeedTest('test_data or test_size need to be is None')
 
     if kwargs_downscaling is None:
         kwargs_downscaling = dict()
@@ -252,10 +245,6 @@ def get_table_res_and_confusion_matrix(hyper_imges: tp.Sequence[HyperImg],
                                'iterations': [150]}
     if alpha_ridge_regression is None:
         alpha_ridge_regression = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1]
-
-    filtred_hyper_imges = [img for img in hyper_imges if filter(img)]
-    if test_hyper_images is not None:
-        filtred_hyper_imges_test = [img for img in test_hyper_images if filter(img)]
 
     if downscaling_method is not None and n_components is not None:
         if downscaling_method == 'PCA':
@@ -278,15 +267,15 @@ def get_table_res_and_confusion_matrix(hyper_imges: tp.Sequence[HyperImg],
     target_to_idx: dict[str, int] = dict()
 
     if test_X is None or test_y is None or train_X is None or train_y is None:
-        df = get_df_medians(filtred_hyper_imges)
-        if test_hyper_images is not None:
-            df_test = get_df_medians(filtred_hyper_imges_test)
+        df = data.hyper_table
+        if test_data is not None:
+            df_test = test_data.hyper_table
 
         if test_size is not None:
-            X = df.drop([hyper_imges[0].target_varible_name, 'Object name'], axis=1)
-            y = df[hyper_imges[0].target_varible_name]
+            X = df.drop([data.target_varible_name, 'Object name'], axis=1)
+            y = df[data.target_varible_name]
 
-            for i, target in enumerate(pd.unique(df[hyper_imges[0].target_varible_name])):
+            for i, target in enumerate(pd.unique(df[data.target_varible_name])):
                 idx_to_target[i] = target
                 target_to_idx[target] = i
 
@@ -294,15 +283,15 @@ def get_table_res_and_confusion_matrix(hyper_imges: tp.Sequence[HyperImg],
 
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, stratify=y, shuffle=shuffle_test)
         else:
-            X_train = df.drop([hyper_imges[0].target_varible_name, 'Object name'], axis=1)
-            y_train = df[hyper_imges[0].target_varible_name]
+            X_train = df.drop([data.target_varible_name, 'Object name'], axis=1)
+            y_train = df[data.target_varible_name]
 
-            X_test = df_test.drop([hyper_imges[0].target_varible_name, 'Object name'], axis=1)
-            y_test = df_test[hyper_imges[0].target_varible_name]
+            X_test = df_test.drop([data.target_varible_name, 'Object name'], axis=1)
+            y_test = df_test[data.target_varible_name]
 
-            for i, target in enumerate(np.unique(np.concatenate([pd.unique(df[hyper_imges[0].target_varible_name]),
+            for i, target in enumerate(np.unique(np.concatenate([pd.unique(df[data.target_varible_name]),
                                                                  pd.unique(
-                                                                     df_test[hyper_imges[0].target_varible_name])]))):
+                                                                     df_test[data.target_varible_name])]))):
                 idx_to_target[i] = target
                 target_to_idx[target] = i
 

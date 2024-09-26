@@ -3,6 +3,7 @@ from hyper_img.hyperImg_segmenter.segmenter import Segmenter
 
 import numpy as np
 import pandas as pd
+import typing as tp
 
 import tifffile as tiff
 
@@ -16,17 +17,18 @@ class TableHyperImg(HyperImg):
     Subclass of HyperImg for work with table annotations of hyperspectral images.
     """
 
-    def __init__(self, path: str, table: pd.DataFrame,
+    def __init__(self,
+                 path: str, 
+                 table: pd.DataFrame,
                  segmenter: Segmenter,
                  savgol_par: tuple[int, int] = (9, 3),
-                 target_varible_name: str = 'Target Varible',
                  name_column: str = 'Image Name',
                  black_calibr_name_column: str = 'Black calibration data',
                  white_calibr_name_column: str = 'White calibration data',
                  plant_number_column: str = 'PlantNumber',
                  id_name_column: str = 'ID партии',
-                 with_median: bool = True,
-                 column_for_marking: str = 'Marking') -> None:
+                 factors_columns: tp.Sequence[str] | None = None,
+                 column_for_marking: str = '') -> None:
         """
         Args:
             path (str): images path.
@@ -58,14 +60,17 @@ class TableHyperImg(HyperImg):
             index = np.arange(len(table))[(table[name_column] == path.split('/')[-1]) &
                                   (table[column_for_marking] == 0)][0]
             table.loc[index, column_for_marking] = 1
-        if len(table) == len(table[table[column_for_marking] == 1]):
+        if column_for_marking != '' and len(table) == len(table[table[column_for_marking] == 1]):
             table = table.drop(columns=[column_for_marking])
         self.name_column = name_column
         self.plant_column = plant_number_column
         self.black_calibr_name_column = black_calibr_name_column
         self.white_calibr_name_column = white_calibr_name_column
         self.id_column = id_name_column
-        super().__init__(path, segmenter, savgol_par, target_varible_name, with_median=with_median)
+        factors = dict()
+        for col in factors_columns:
+            factors[col] = self.row[col]
+        super().__init__(path, segmenter, savgol_par, factors=factors)
 
     def _get_image(self) -> np.ndarray:
         dir_name: str = '/'.join(self.path.split('/')[:-1]) + '/'
@@ -89,6 +94,3 @@ class TableHyperImg(HyperImg):
         else:
             self.wh_img = np.zeros(img.shape, dtype=np.float64)
         return new_img
-
-    def _get_target_varible(self) -> str:
-        return self.row[self.target_varible_name]

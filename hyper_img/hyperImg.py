@@ -32,42 +32,35 @@ class HyperImg(ABC):
                  path: str,
                  segmenter: Segmenter,
                  savgol_par: tuple[int, int] = (9, 3),
-                 target_varible_name: str = 'Target Varible',
                  black_calibration_img_name: str = '',
                  white_calibration_img_name: str = '',
-                 with_median: bool = True,
                  camera_sensitive: int = 4,
                  camera_begin_wavelenght: int = 450,
+                 factors: dict[str, tp.Any] | None = None,
                  object_name: str | None = None) -> None:
         """
         Args:
             path (str): images path.
             segmenter (Segmenter): object for segmentation.
             savgol_par (tuple[int, int], optional): parametrs for savgol method. Defaults to (9, 3).
-            target_varible_name (str, optional): name of target varible. Defaults to 'Target Varible'.
             black_calibration_img_name (str): black image for calibration name. Defaults to ''.
             white_calibration_img_name (str): white image for calibration name. Defaults to ''.
             mask (None | np.ndarray): image mask.
             with_median (bool): if true, then calculate medians for each channel. Defaults True.
             object_name (str): object name. Default None
         """
+        self.factors = factors
         self.camera_sensitive = camera_sensitive
         self.camera_begin_wavelenght = camera_begin_wavelenght
         self.object_name = object_name
         self.savgol_par = savgol_par
         self.path = path
-        self.target_varible_name = target_varible_name
         self.black_calibration_img_name = black_calibration_img_name
         self.white_calibration_img_name = white_calibration_img_name
         self.img = self._get_image()
         self.widht = self.img.shape[0]
         self.height = self.img.shape[1]
         self.mask = segmenter.get_mask(self.img)
-        self.pixels = self._get_pixels()
-        self.with_median = with_median
-        if with_median:
-            self.medians = self.get_medians()
-        self.target_variable = self._get_target_varible()
 
     @staticmethod
     def wave_len(x: int, step: int = 4, begin_wave_len: int = 450) -> int:
@@ -90,15 +83,8 @@ class HyperImg(ABC):
         """
         pass
 
-    @abstractmethod
-    def _get_target_varible(self) -> str:
-        """
-        Returns:
-            str: target variable.
-        """
-        pass
 
-    def _get_pixels(self) -> tp.List[tp.Tuple[int, int]]:
+    def get_pixels(self) -> tp.List[tp.Tuple[int, int]]:
         """
         Returns:
             tp.List[tp.Tuple[int, int]]: mask pixels.
@@ -112,15 +98,23 @@ class HyperImg(ABC):
             np.ndarray: vector of medians.
         """
         medians: tp.List[np.ndarray] = list()
+        pixels = self.get_pixels()
         for i in range(self.img.shape[2]):
-            medians.append(np.median(np.array([self.img[p[0]][p[1]][i] for p in self.pixels])))
+            medians.append(np.median(np.array([self.img[p[0]][p[1]][i] for p in pixels])))
         return savgol_filter(np.array(medians), *self.savgol_par)
 
     def get_all_values(self) -> np.ndarray:
         values: tp.List[np.ndarray] = []
+        pixels = self.get_pixels()
         for i in range(self.img.shape[2]):
-            values.append(np.array([self.img[p[0]][p[1]][i] for p in self.pixels]))
+            values.append(np.array([self.img[p[0]][p[1]][i] for p in pixels]))
         return np.array(values)
+
+    def get_factors(self) -> str:
+        factors_name = ''
+        for f in self.factors:
+            factors_name += f' {f}({self.factors[f]});'
+        return factors_name
 
     @property
     def pan(self) -> np.ndarray:
@@ -241,8 +235,8 @@ class HyperImg(ABC):
 
     def __str__(self) -> str:
         return f'Hyperspectral image. ' \
-               f'\n {self.target_varible_name} : {self.target_variable} ' \
-               f'\n Image shape: {self.img.shape}.'
+               f'\n Image shape: {self.img.shape}.' \
+               + self.get_factors()
 
     def __repr__(self) -> str:
         fig, axes = plt.subplots(1, 2)
@@ -253,4 +247,4 @@ class HyperImg(ABC):
         axes[1].imshow(self.mask, cmap='gray')
         axes[1].set_title('mask segmentation')
 
-        return self.target_varible_name + ': ' + self.target_variable
+        return self.get_factors()
