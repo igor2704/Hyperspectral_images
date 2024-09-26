@@ -733,7 +733,7 @@ def create_folder_with_all_graphs(hyper_data: HyperData,
                         alternative=alternative, corrected_p_value_method=corrected_p_value_method,
                         params_scipy=params_scipy,
                         color=color,
-                        download_path=folder_path + '/statistical_analysis' + '/ttest_pairwise.html',
+                        download_path=folder_path + '/statistical_analysis' + '/mannwhitneyu_pairwise.html',
                         with_png=with_png, png_scale=png_scale,
                         png_width=png_width, png_height=png_height,
                         fig_show=fig_show)
