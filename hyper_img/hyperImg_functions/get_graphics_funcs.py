@@ -2,7 +2,7 @@ from hyper_img.hyperImg_data_classes.data import HyperData
 from hyper_img.hyperImg_functions.get_data_funcs import get_df_graphics_features_wavelenght, get_boxplot_values, \
                                                         get_df_pca_and_explained_variance, get_df_isomap, \
                                                         get_df_umap, get_anova_df, get_df_em_algorithm_clustering, \
-                                                        get_mannwhitneyu_pairwise, get_ttest_pairwise, get_tukey_pairwise
+                                                        get_mannwhitneyu_pairwise, get_ttest_pairwise, get_tukey_pairwise, get_stat_tests_df
 
 import os
 
@@ -409,7 +409,49 @@ def get_stat_test_graph(funcs,
                             width=png_width, height=png_height)
 
 
+def get_stat_tests_graph(hyper_data,
+                   alpha=0.05,
+                   stat_test_names: tp.Sequence[str] = ('Tukey', 'Mann-Whitneyu', 'ANOVA'),
+                   alternative: str = 'two-sided',
+                   factors=None,
+                   corrected_p_value_method: str | None = 'holm',
+                   color: dict[str, str] | None = None,
+                   download_dir_path: str = '',
+                   with_png: bool = False,
+                   png_scale: float = 8,
+                   png_width: int = 500,
+                   png_height: int = 700,
+                   fig_show: bool = False,
+                   **kwargs):
+    # stat_test_names subsequence of ['Tukey', 'Mann-Whitneyu', 'ttest', 'ANOVA']
+    df = get_stat_tests_df(hyper_data, alpha, stat_test_names, alternative, factors, corrected_p_value_method, **kwargs)
+    for name in stat_test_names:
+        if color is not None:
+            fig = px.line(df[df['Test name'] == name], x='Wavelength', y=f'P-value', color='Factor',
+                        color_discrete_map=color)
+        else:
+            fig = px.line(df[df['Test name'] == name], x='Wavelength', y=f'P-value', color='Factor')
+
+        fig.update_layout(title=f'{name} result',
+                        xaxis_title='Wavelength, nm',
+                        yaxis_title='p-value')
+        fig.update_traces(line=dict(width=0.5))
+
+        if fig_show:
+            fig.show()
+
+        if download_dir_path:
+            path = os.path.join(download_dir_path, name + '.html')
+            fig.write_html(path)
+            if with_png:
+                change_png_fig(fig)
+                pio.write_image(fig, path.replace('.html', '.png'), scale=png_scale,
+                                width=png_width, height=png_height)
+             
+
+
 def get_tukey_pairwise_graph(hyper_data,
+                             alpha=0.05,
                              factors=None,
                              corrected_p_value_method: str | None = 'holm',
                              color: dict[str, str] | None = None,
@@ -420,7 +462,7 @@ def get_tukey_pairwise_graph(hyper_data,
                              png_height: int = 700,
                              fig_show: bool = False,
                              **kwargs):
-    get_stat_test_graph(lambda x: get_tukey_pairwise(x, factors, corrected_p_value_method),
+    get_stat_test_graph(lambda x: get_tukey_pairwise(x, alpha, factors, corrected_p_value_method),
                         'Tukey',
                          hyper_data,
                          color,
@@ -434,6 +476,7 @@ def get_tukey_pairwise_graph(hyper_data,
     
     
 def get_mannwhitneyu_pairwise_graph(hyper_data,
+                                    alpha=0.05,
                               factors=None,
                               alternative: str = 'two-sided',
                               corrected_p_value_method: str | None = 'holm',
@@ -446,7 +489,7 @@ def get_mannwhitneyu_pairwise_graph(hyper_data,
                               png_height: int = 700,
                               fig_show: bool = False,
                               **kwargs):
-    get_stat_test_graph(lambda x: get_mannwhitneyu_pairwise(hyper_data, factors, 
+    get_stat_test_graph(lambda x: get_mannwhitneyu_pairwise(hyper_data, alpha, factors, 
                                                             alternative, corrected_p_value_method,
                                                             params_scipy),
                         'Mann-Whitneyu',
@@ -462,6 +505,7 @@ def get_mannwhitneyu_pairwise_graph(hyper_data,
 
 
 def get_ttest_pairwise_graph(hyper_data,
+                             alpha=0.05,
                        factors=None,
                        alternative: str = 'two-sided',
                        corrected_p_value_method: str | None = 'holm',
@@ -474,7 +518,7 @@ def get_ttest_pairwise_graph(hyper_data,
                        png_height: int = 700,
                        fig_show: bool = False,
                        **kwargs):
-    get_stat_test_graph(lambda x: get_ttest_pairwise(hyper_data, factors, 
+    get_stat_test_graph(lambda x: get_ttest_pairwise(hyper_data, alpha, factors, 
                                                             alternative, corrected_p_value_method,
                                                             params_scipy),
                         'ttest',
@@ -490,6 +534,7 @@ def get_ttest_pairwise_graph(hyper_data,
 
 
 def get_anova_graph(hyper_data,
+                    alpha=0.05,
                     corrected_p_value_method: str | None = 'holm',
                     color: dict[str, str] | None = None,
                     download_path: str = '',
@@ -499,7 +544,7 @@ def get_anova_graph(hyper_data,
                     png_height: int = 700,
                     fig_show: bool = False,
                     **kwargs) -> None:
-    get_stat_test_graph(lambda x: get_anova_df(x, corrected_p_value_method=corrected_p_value_method),
+    get_stat_test_graph(lambda x: get_anova_df(x, alpha, corrected_p_value_method=corrected_p_value_method),
                         'ANOVA',
                         hyper_data,
                         color,
@@ -593,8 +638,10 @@ def get_em_algorithm_clustering_graph(hyper_data: HyperData,
         annotation.to_excel(download_path_table)
 
 
-def create_folder_with_all_graphs(hyper_data: HyperData, 
+def create_folder_with_all_graphs(hyper_data: HyperData,
+                                  alpha = 0.05,
                                   folder_path: str = 'all_hyper_graphics',
+                                  stat_test_names:tp.Sequence[str] = ('Tukey', 'Mann-Whitneyu', 'ANOVA'),
                                   color: dict[str, str] | None = None,
                                   dim_clusterization: int = 10,
                                   n_clusters: int | None = None,
@@ -716,31 +763,11 @@ def create_folder_with_all_graphs(hyper_data: HyperData,
                                       fig_show=fig_show)
     
     os.mkdir(folder_path + '/' + 'statistical_analysis')
-    get_anova_graph(hyper_data=hyper_data, corrected_p_value_method=corrected_p_value_method, color=color,
-                    download_path=folder_path + '/statistical_analysis' + '/anova.html',
-                    with_png=with_png, png_scale=png_scale,
-                    png_width=png_width, png_height=png_height,
-                    fig_show=fig_show)
-    get_ttest_pairwise_graph( hyper_data=hyper_data, factors=factors_pairwise_tests,
-                        alternative=alternative, corrected_p_value_method=corrected_p_value_method,
-                        params_scipy=params_scipy,
-                        color=color,
-                        download_path=folder_path + '/statistical_analysis' + '/ttest_pairwise.html',
-                        with_png=with_png, png_scale=png_scale,
-                        png_width=png_width, png_height=png_height,
-                        fig_show=fig_show)
-    get_mannwhitneyu_pairwise_graph(hyper_data=hyper_data, factors=factors_pairwise_tests,
-                        alternative=alternative, corrected_p_value_method=corrected_p_value_method,
-                        params_scipy=params_scipy,
-                        color=color,
-                        download_path=folder_path + '/statistical_analysis' + '/mannwhitneyu_pairwise.html',
-                        with_png=with_png, png_scale=png_scale,
-                        png_width=png_width, png_height=png_height,
-                        fig_show=fig_show)
-    get_tukey_pairwise_graph(hyper_data=hyper_data, factors=factors_pairwise_tests,
-                        corrected_p_value_method=corrected_p_value_method,
-                        color=color,
-                        download_path=folder_path + '/statistical_analysis' + '/tukey_pairwise.html',
-                        with_png=with_png, png_scale=png_scale,
-                        png_width=png_width, png_height=png_height,
-                        fig_show=fig_show)
+    get_stat_tests_graph(hyper_data=hyper_data, alpha=alpha, stat_test_names=stat_test_names, factors=factors_pairwise_tests,
+                   alternative=alternative, corrected_p_value_method=corrected_p_value_method,
+                   params_scipy=params_scipy,
+                   color=color,
+                   download_dir_path=folder_path + '/statistical_analysis',
+                   with_png=with_png, png_scale=png_scale,
+                   png_width=png_width, png_height=png_height,
+                   fig_show=fig_show)

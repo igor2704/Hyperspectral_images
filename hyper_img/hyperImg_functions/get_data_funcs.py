@@ -253,6 +253,7 @@ def get_df_umap(hyper_data: HyperData,
 
 
 def get_mannwhitneyu_pairwise(hyper_data,
+                       alpha=0.05,
                        factors=None,
                        alternative: str = 'two-sided',
                        corrected_p_value_method: str | None = 'holm',
@@ -285,12 +286,23 @@ def get_mannwhitneyu_pairwise(hyper_data,
             dct[i] = f'{f1} : {f2}'
             pvalues.append(p_value)
         
-        pvalues = multipletests(pvalues, method=corrected_p_value_method)[1]
         for k in dct:
             dct_answer[dct[k]].append(pvalues[k])
     
-    for k in dct_answer:
-        dct_answer[k] = multipletests(dct_answer[k], method=corrected_p_value_method)[1]
+    value_idx = dict()
+    for i, k in enumerate(dct_answer):
+        value_idx[k] = i
+    
+    if corrected_p_value_method is not None:
+        all_p_value = []
+        lens = dict()
+        lens[-1] = 0
+        for k in dct_answer:
+            all_p_value.extend(dct_answer[k])
+            lens[value_idx[k]] = len(dct_answer[k]) + lens[value_idx[k] - 1]
+        all_p_value = multipletests(all_p_value, method=corrected_p_value_method, alpha=alpha)[1]
+        for k in dct_answer:
+            dct_answer[k] = all_p_value[lens[value_idx[k] - 1]:lens[value_idx[k]]]
     
     wl_columns = ['wl_' + str(wl) 
                   for wl in np.arange(0, hyper_data.channels_len) * hyper_data.camera_sensitive + hyper_data.camera_begin_wavelenght]
@@ -298,6 +310,7 @@ def get_mannwhitneyu_pairwise(hyper_data,
 
 
 def get_ttest_pairwise(hyper_data,
+                       alpha=0.05,
                        factors=None,
                        alternative: str = 'two-sided',
                        corrected_p_value_method: str | None = 'holm',
@@ -330,12 +343,24 @@ def get_ttest_pairwise(hyper_data,
             dct[i] = f'{f1} : {f2}'
             pvalues.append(p_value)
         
-        pvalues = multipletests(pvalues, method=corrected_p_value_method)[1]
+        pvalues = multipletests(pvalues, method=corrected_p_value_method, alpha=alpha)[1]
         for k in dct:
             dct_answer[dct[k]].append(pvalues[k])
     
-    for k in dct_answer:
-        dct_answer[k] = multipletests(dct_answer[k], method=corrected_p_value_method)[1]
+    value_idx = dict()
+    for i, k in enumerate(dct_answer):
+        value_idx[k] = i
+    
+    if corrected_p_value_method is not None:
+        all_p_value = []
+        lens = dict()
+        lens[-1] = 0
+        for k in dct_answer:
+            all_p_value.extend(dct_answer[k])
+            lens[value_idx[k]] = len(dct_answer[k]) + lens[value_idx[k] - 1]
+        all_p_value = multipletests(all_p_value, method=corrected_p_value_method, alpha=alpha)[1]
+        for k in dct_answer:
+            dct_answer[k] = all_p_value[lens[value_idx[k] - 1]:lens[value_idx[k]]]
     
     wl_columns = ['wl_' + str(wl) 
                   for wl in np.arange(0, hyper_data.channels_len) * hyper_data.camera_sensitive + hyper_data.camera_begin_wavelenght]
@@ -343,6 +368,7 @@ def get_ttest_pairwise(hyper_data,
 
 
 def get_tukey_pairwise(hyper_data,
+                       alpha=0.05,
                        factors=None,
                        corrected_p_value_method: str | None = 'holm'):
     df = deepcopy(hyper_data.hyper_table)
@@ -358,6 +384,8 @@ def get_tukey_pairwise(hyper_data,
     df['fffactors'] = factors_lst
     
     dct_answer = defaultdict(list)
+    for k in dct_answer:
+        print(k)
     for ch in range(hyper_data.channels_len):
         wl = ch * hyper_data.camera_sensitive + hyper_data.camera_begin_wavelenght
         tukey = pairwise_tukeyhsd(endog=df[f'wl_{str(wl)}'], groups=df['fffactors'], alpha=0.05)
@@ -365,8 +393,21 @@ def get_tukey_pairwise(hyper_data,
         for j in range(len(tukey)):
             dct_answer[f'{tukey.iloc[j]["group1"]} : {tukey.iloc[j]["group2"]}'].append(tukey.iloc[j]['p-adj'])
     
-    for k in dct_answer:
-        dct_answer[k] = multipletests(dct_answer[k], method=corrected_p_value_method)[1]
+    value_idx = dict()
+    for i, k in enumerate(dct_answer):
+        value_idx[k] = i
+    
+    if corrected_p_value_method is not None:
+        all_p_value = []
+        lens = dict()
+        lens[-1] = 0
+        for k in dct_answer:
+            all_p_value.extend(dct_answer[k])
+            lens[value_idx[k]] = len(dct_answer[k]) + lens[value_idx[k] - 1]
+        all_p_value = multipletests(all_p_value, method=corrected_p_value_method, alpha=alpha)[1]
+        for k in dct_answer:
+            dct_answer[k] = all_p_value[lens[value_idx[k] - 1]:lens[value_idx[k]]]
+
     wl_columns = ['wl_' + str(wl) 
                   for wl in np.arange(0, hyper_data.channels_len) * hyper_data.camera_sensitive + hyper_data.camera_begin_wavelenght]
     return pd.DataFrame(dct_answer, index=wl_columns)
@@ -435,6 +476,7 @@ def get_df_em_algorithm_clustering(hyper_data: HyperData,
 
 
 def get_anova_df(hyper_data,
+                 alpha=0.05,
                  corrected_p_value_method: str | None = 'holm'):
     df = deepcopy(hyper_data.hyper_table)
     dct_ind_to_f = dict()
@@ -484,8 +526,55 @@ def get_anova_df(hyper_data,
             if idx != 'Residual':
                 dct_answer[idx].append(df_res.loc[idx]['PR(>F)'])
     
-    for k in dct_answer:
-        dct_answer[k] = multipletests(dct_answer[k], method=corrected_p_value_method)[1]
+    value_idx = dict()
+    for i, k in enumerate(dct_answer):
+        value_idx[k] = i
+    
+    if corrected_p_value_method is not None:
+        all_p_value = []
+        lens = dict()
+        lens[-1] = 0
+        for k in dct_answer:
+            all_p_value.extend(dct_answer[k])
+            lens[value_idx[k]] = len(dct_answer[k]) + lens[value_idx[k] - 1]
+        all_p_value = multipletests(all_p_value, method=corrected_p_value_method, alpha=alpha)[1]
+        for k in dct_answer:
+            dct_answer[k] = all_p_value[lens[value_idx[k] - 1]:lens[value_idx[k]]]
     wl_columns = ['wl_' + str(wl) 
                         for wl in np.arange(0, hyper_data.channels_len) * hyper_data.camera_sensitive + hyper_data.camera_begin_wavelenght]
     return pd.DataFrame(dct_answer, index=wl_columns)
+
+
+def get_stat_tests_df(hyper_data,
+                   alpha=0.05,
+                   stat_test_names: tp.Sequence[str] = ('Tukey', 'Mann-Whitneyu', 'ANOVA'),
+                   alternative: str = 'two-sided',
+                   factors=None,
+                   corrected_p_value_method: str | None = 'holm',
+                   **kwargs):
+    # stat_test_names subsequence of ['Tukey', 'Mann-Whitneyu', 'ttest', 'ANOVA']
+    dct = defaultdict(list)
+    for name in stat_test_names:
+        if name == 'Tukey':
+            df = get_tukey_pairwise(hyper_data, alpha, factors, corrected_p_value_method=None)
+        elif name == 'Mann-Whitneyu':
+            df = get_mannwhitneyu_pairwise(hyper_data, alpha, factors, 
+                                            alternative, None, None)
+        elif name == 'ttest':
+            df = get_ttest_pairwise(hyper_data, alpha, factors, 
+                                    alternative, None, None)
+        elif name == 'ANOVA':
+            df = get_anova_df(hyper_data, alpha, corrected_p_value_method=corrected_p_value_method)
+        for col in df.columns:
+            for i in range(len(df)):
+                dct['Wavelength'].append(df.index[i].replace('wl_', ''))
+                dct['P-value'].append(df.iloc[i][col])
+                dct['Factor'].append(col)
+                dct['Test name'].append(name)
+    
+    if corrected_p_value_method is not None:
+        dct['P-value'] = multipletests(dct['P-value'], method=corrected_p_value_method, alpha=alpha)[1]
+    
+    df = pd.DataFrame(dct)
+    return df
+  

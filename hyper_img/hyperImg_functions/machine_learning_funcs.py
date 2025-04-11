@@ -173,6 +173,7 @@ def get_binary_metrics(models: tp.Sequence[sklearn.base.BaseEstimator],
 
 
 def get_table_res_and_confusion_matrix(data: HyperData,
+                                       target_varible_name: str,
                                        test_size: float | None = 0.15,
                                        test_data: HyperData | None = None,
                                        train_X: pd.DataFrame | None = None,
@@ -267,15 +268,16 @@ def get_table_res_and_confusion_matrix(data: HyperData,
     target_to_idx: dict[str, int] = dict()
 
     if test_X is None or test_y is None or train_X is None or train_y is None:
-        df = data.hyper_table
+        df = data.hyper_table.drop([f for f in data.factors if f != target_varible_name] + ['all_factors'], axis=1)
+        
         if test_data is not None:
             df_test = test_data.hyper_table
 
         if test_size is not None:
-            X = df.drop([data.target_varible_name, 'Object name'], axis=1)
-            y = df[data.target_varible_name]
+            X = df.drop([target_varible_name, 'Object name'], axis=1)
+            y = df[target_varible_name]
 
-            for i, target in enumerate(pd.unique(df[data.target_varible_name])):
+            for i, target in enumerate(pd.unique(df[target_varible_name])):
                 idx_to_target[i] = target
                 target_to_idx[target] = i
 
@@ -283,15 +285,15 @@ def get_table_res_and_confusion_matrix(data: HyperData,
 
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, stratify=y, shuffle=shuffle_test)
         else:
-            X_train = df.drop([data.target_varible_name, 'Object name'], axis=1)
-            y_train = df[data.target_varible_name]
+            X_train = df.drop([target_varible_name, 'Object name'], axis=1)
+            y_train = df[target_varible_name]
 
-            X_test = df_test.drop([data.target_varible_name, 'Object name'], axis=1)
-            y_test = df_test[data.target_varible_name]
+            X_test = df_test.drop([target_varible_name, 'Object name'], axis=1)
+            y_test = df_test[target_varible_name]
 
-            for i, target in enumerate(np.unique(np.concatenate([pd.unique(df[data.target_varible_name]),
+            for i, target in enumerate(np.unique(np.concatenate([pd.unique(df[target_varible_name]),
                                                                  pd.unique(
-                                                                     df_test[data.target_varible_name])]))):
+                                                                     df_test[target_varible_name])]))):
                 idx_to_target[i] = target
                 target_to_idx[target] = i
 
@@ -366,3 +368,4 @@ def get_table_res_and_confusion_matrix(data: HyperData,
                                 pad_inches=1)
 
     return table_dfs, confusion_matrixes
+
