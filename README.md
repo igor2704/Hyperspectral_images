@@ -45,5 +45,5 @@ HyperDataPixels (hyper_img/hyperImg_data_classes/data_subclasses/pixels.py) и H
 
 ### 
 В директории examples находятся Jupyter Notebook с примерами использования конвейера.  
-E-mail для связи: *i.busov@g.nsu.ru*"
+E-mail для связи: *i.busov@g.nsu.ru*
 
